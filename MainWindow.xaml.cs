@@ -125,6 +125,7 @@ public partial class MainWindow : Window
         new MemoryBridgeHandler(() => _connection.Memory).Register(router);
         new StickerBridgeHandler(() => _connection.Stickers).Register(router);
         new ModelBridgeHandler(() => _connection.Models).Register(router);
+        new PluginBridgeHandler(() => _connection.Plugins).Register(router);
         new BackupBridgeHandler(() => _connection.Backup, () => _settings.Connection, OpenFolder).Register(router);
         new WindowBridgeHandler(
             () => _settings.PrivateDirectory,

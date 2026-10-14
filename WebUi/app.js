@@ -42,6 +42,10 @@
     appState.modelController?.syncButtons();
   }
 
+  function syncPluginButtons() {
+    appState.pluginController?.syncButtons();
+  }
+
   function isConnected() {
     return $('.connection-chip').classList.contains('connected');
   }
@@ -95,6 +99,7 @@
     $('#uploadDropzone').classList.toggle('disabled', !uploadReady);
     syncRenameButton();
     syncModelButtons();
+    syncPluginButtons();
     syncConnectionButton();
   }
 
@@ -139,6 +144,7 @@
     appState.dirtyStickers = false;
     appState.dirtyRaw = false;
     appState.modelController?.reset();
+    appState.pluginController?.reset();
     $('.connection-chip').classList.remove('connected');
     $('#connectionStatus').textContent = '尚未连接';
     $('#memoryCount').textContent = '—';
@@ -166,6 +172,7 @@
     $('#backupButton').disabled = true;
     appState.memoryController?.renderList();
     appState.stickerController?.renderList();
+    syncPluginButtons();
     setDirtyState();
     syncConnectionButton();
   }
@@ -200,6 +207,8 @@
     if (activeButton) nav.style.setProperty('--active-x', activeButton.offsetLeft + 'px');
     if (name === 'models' && $('.connection-chip').classList.contains('connected') &&
         !appState.model.snapshot && !appState.model.loading) appState.modelController?.load();
+    if (name === 'plugins' && isConnected() && !appState.plugin.loaded && !appState.plugin.loading)
+      appState.pluginController?.load();
   }
 
   function setDirtyState() {
@@ -286,6 +295,7 @@
     syncConnectionButton();
     $('#connectionStatus').textContent = '正在连接';
     $('.connection-chip').classList.remove('connected');
+    appState.pluginController?.reset();
     setStatus('正在连接服务器并扫描允许管理的目录…');
     setBusy(true);
     try {
@@ -316,6 +326,7 @@
       setBusy(false);
       renderMemoryList(); renderStickerList(); setDirtyState();
       loadModels();
+      if (appState.currentTab === 'plugins') appState.pluginController?.load(true);
       setStatus('SSH 连接成功，已读取 ' + result.memoryCount + ' 个记忆文档和 ' + result.stickerCount + ' 张图片。');
       showToast('服务器连接成功。');
     } catch (error) {
@@ -464,6 +475,10 @@
       $, bridgeCall, state: appState.model, setStatus, showToast, reportError, setBusy,
       isConnected: () => $('.connection-chip').classList.contains('connected')
     });
+    appState.pluginController = window.OpenClawPluginController.create({
+      $, $$, bridgeCall, state: appState.plugin, setStatus, showToast, reportError,
+      isConnected, connectionState: appState.connection
+    });
     appState.stickerController = window.OpenClawStickerController.create({
       $, state: appState.sticker, sizeLabel, setDirtyState, setStatus, showToast, reportError, review,
       bridgeCall, setBusy, syncRenameButton, loadStickerImage, loadStickerThumbnail,
@@ -483,6 +498,7 @@
     appState.eventBindings = window.OpenClawEventBindings.create({
       $, $$, appState, switchTab, connectServer, toggleConnection, syncConnectionButton, toggleBackupPause, cancelBackup,
       saveConnectionSettings, bridgeCall, reportError, setStatus, setDirtyState, saveMemory,
+      pluginController: appState.pluginController,
       renderMemoryList, renderStickerList, saveStickerRows, openRawEditor,
       testModelLatency, openAddModelDialog, submitAddModel,
       resetThemePalette, uploadFiles, cancelUpload, openRenameDialog, submitStickerRename,

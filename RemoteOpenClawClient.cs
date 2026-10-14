@@ -30,6 +30,18 @@ public sealed partial class RemoteOpenClawClient : IDisposable
                 ? TimeSpan.FromMinutes(30)
                 : null);
 
+    internal Task<JsonObject> InvokePluginAsync(
+        ConnectionSettings settings,
+        JsonObject request,
+        CancellationToken cancellationToken = default) =>
+        _session.InvokeAsync(
+            settings,
+            request,
+            cancellationToken,
+            request["action"]?.GetValue<string>() is "plugins_install" or "plugins_update" or "plugins_uninstall"
+                ? TimeSpan.FromMinutes(16)
+                : null);
+
 
     public async Task<IReadOnlyList<RemoteFile>> ConnectAndListAsync(
         ConnectionSettings settings, CancellationToken cancellationToken = default)

@@ -31,6 +31,8 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 MAX_TEXT = 4 * 1024 * 1024
 MAX_IMAGE = 30 * 1024 * 1024
 
+# OPENCLAW_PLUGIN_OPERATIONS
+
 def openclaw_config():
     candidates = []
     configured = os.environ.get("OPENCLAW_CONFIG_PATH", "").strip()
@@ -1067,6 +1069,24 @@ def handle(encoded, binary_payload=None):
             models_add()
         elif action == "models_test_latency":
             models_test_latency()
+        elif action == "plugins_inventory":
+            print(json.dumps(plugins_inventory(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_search":
+            print(json.dumps(plugins_search(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_inspect":
+            print(json.dumps(plugins_inspect(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_enable":
+            print(json.dumps(plugins_enable(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_disable":
+            print(json.dumps(plugins_disable(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_reload":
+            print(json.dumps(plugins_reload(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_update":
+            print(json.dumps(plugins_update(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_uninstall":
+            print(json.dumps(plugins_uninstall(), ensure_ascii=False, separators=(",", ":")))
+        elif action == "plugins_install":
+            print(json.dumps(plugins_install(), ensure_ascii=False, separators=(",", ":")))
         else:
             fail("不支持的操作")
     except SystemExit:

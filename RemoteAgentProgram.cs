@@ -11,6 +11,8 @@ namespace OpenClawDebugger;
 internal static class RemoteAgentProgram
 {
     private const string ResourceName = "OpenClawDebugger.RemoteAgentProgram.py";
+    private const string PluginOperationsResourceName = "OpenClawDebugger.RemotePluginOperations.py";
+    private const string PluginOperationsMarker = "# OPENCLAW_PLUGIN_OPERATIONS";
     private static readonly Lazy<string> Script = new(LoadScript, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static string Main => Script.Value;
@@ -18,8 +20,18 @@ internal static class RemoteAgentProgram
     private static string LoadScript()
     {
         var assembly = typeof(RemoteAgentProgram).Assembly;
-        using var stream = assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException("远程代理资源未嵌入：" + ResourceName);
+        var source = ReadResource(assembly, ResourceName);
+        var pluginOperations = ReadResource(assembly, PluginOperationsResourceName);
+        if (source.IndexOf(PluginOperationsMarker, StringComparison.Ordinal) < 0 ||
+            source.IndexOf(PluginOperationsMarker, StringComparison.Ordinal) != source.LastIndexOf(PluginOperationsMarker, StringComparison.Ordinal))
+            throw new InvalidOperationException("远程代理插件操作插入点缺失或重复。");
+        return source.Replace(PluginOperationsMarker, pluginOperations, StringComparison.Ordinal);
+    }
+
+    private static string ReadResource(Assembly assembly, string resourceName)
+    {
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException("远程代理资源未嵌入：" + resourceName);
         using var reader = new StreamReader(stream, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true);
         return reader.ReadToEnd();
     }

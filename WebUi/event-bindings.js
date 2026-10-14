@@ -8,7 +8,7 @@
       testModelLatency, openAddModelDialog, submitAddModel,
       resetThemePalette, uploadFiles, cancelUpload, openRenameDialog, submitStickerRename,
       loadStickerThumbnail, hasDraggedFiles, getDroppedFiles, saveRawEditor,
-      setBackdropValue, resetBackdrop, showToast, persistTheme
+      setBackdropValue, resetBackdrop, showToast, persistTheme, pluginController
     } = deps;
     function wireEvents() {
 
@@ -39,6 +39,23 @@
     $('#modelAddCancelButton').addEventListener('click', () => $('#modelAddDialog').close());
     $('#modelAddCloseButton').addEventListener('click', () => $('#modelAddDialog').close());
     $('#modelAddForm').addEventListener('submit', event => { event.preventDefault(); submitAddModel(); });
+    $('#pluginRefreshButton').addEventListener('click', () => pluginController.load(true));
+    $('#pluginSearchForm').addEventListener('submit', event => { event.preventDefault(); pluginController.search(); });
+    $('#pluginFilter').addEventListener('input', pluginController.renderInstalled);
+    $('#pluginInstallButton').addEventListener('click', pluginController.installFromInput);
+    $('#pluginList').addEventListener('click', event => {
+      const button = event.target.closest('[data-plugin-action]');
+      if (button) pluginController.handleAction(button.dataset.pluginAction, button.dataset.pluginId);
+    });
+    $('#pluginSearchResults').addEventListener('click', event => {
+      const button = event.target.closest('[data-plugin-spec]');
+      if (button) pluginController.setInstallSpec(button.dataset.pluginSpec);
+    });
+    $('#pluginActionForm').addEventListener('submit', event => {
+      event.preventDefault(); $('#pluginActionDialog').close('confirm');
+    });
+    $('#pluginActionCancelButton').addEventListener('click', () => $('#pluginActionDialog').close('cancel'));
+    $('#pluginActionCloseButton').addEventListener('click', () => $('#pluginActionDialog').close('cancel'));
     $('#editMemoryButton').addEventListener('click', () => {
       if (!appState.currentMemory) return;
       appState.memoryEditing = true; $('#memoryEditor').readOnly = false;
@@ -121,6 +138,8 @@
       appState.model.testController?.abort();
       appState.model.orderController?.abort();
       appState.model.addController?.abort();
+      appState.plugin.loadController?.abort();
+      appState.plugin.searchController?.abort();
       appState.backup.controller?.abort();
       appState.bridge?.cancelAll();
       if (appState.dirtyMemory || appState.dirtyStickers || appState.dirtyRaw) { event.preventDefault(); event.returnValue = ''; }

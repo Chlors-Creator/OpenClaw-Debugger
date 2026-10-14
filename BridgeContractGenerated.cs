@@ -128,6 +128,90 @@ internal static class BridgeContractGenerated
                     ["apiKey"] = "string",
                 }
             },
+            ["getPlugins"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 180000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                }
+            },
+            ["searchPlugins"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 180000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["query"] = "string",
+                }
+            },
+            ["inspectPlugin"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 180000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["pluginId"] = "string",
+                }
+            },
+            ["setPluginEnabled"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 300000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["pluginId"] = "string",
+                    ["enabled"] = "boolean",
+                    ["acceptCapabilities"] = "boolean",
+                }
+            },
+            ["reloadPlugin"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 300000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["pluginId"] = "string",
+                    ["acceptCapabilities"] = "boolean",
+                }
+            },
+            ["updatePlugin"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 1080000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["pluginId"] = "string",
+                    ["acceptCapabilities"] = "boolean",
+                }
+            },
+            ["uninstallPlugin"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 1080000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["pluginId"] = "string",
+                }
+            },
+            ["installPlugin"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "plugin",
+                TimeoutMs = 1080000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["packageSpec"] = "string",
+                    ["acceptCapabilities"] = "boolean",
+                }
+            },
             ["readSticker"] = new BridgeCommandDefinition
             {
                 Mode = "remote",

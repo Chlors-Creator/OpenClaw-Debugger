@@ -244,7 +244,8 @@ internal sealed class RemoteAgentSession : IDisposable
     private static bool IsSafeToRetry(JsonObject request)
     {
         var action = request["action"]?.GetValue<string>();
-        return action is "inventory" or "read" or "models_inventory" or "models_test_latency";
+        return action is "inventory" or "read" or "models_inventory" or "models_test_latency" or
+            "plugins_inventory" or "plugins_search" or "plugins_inspect";
     }
 
     private static TimeSpan RetryDelay(int attempt)

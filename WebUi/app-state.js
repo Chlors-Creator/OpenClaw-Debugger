@@ -14,6 +14,7 @@
     const connection = window.OpenClawConnectionState.create();
     const memory = window.OpenClawMemoryState.create();
     const model = window.OpenClawModelState.create();
+    const plugin = window.OpenClawPluginState.create();
     const sticker = window.OpenClawStickerState.create();
     const backup = window.OpenClawBackupState.create();
     const settings = window.OpenClawSettingsState.create();
@@ -21,6 +22,7 @@
       connection,
       memory,
       model,
+      plugin,
       sticker,
       backup,
       settings,
@@ -53,6 +55,7 @@
       stickerCacheController: null,
       memoryController: null,
       modelController: null,
+      pluginController: null,
       stickerController: null,
       uploadController: null,
       backupController: null,

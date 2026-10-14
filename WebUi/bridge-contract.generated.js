@@ -97,6 +97,73 @@
         "apiKey": "string"
       }
     },
+    "getPlugins": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 180000,
+      "payload": {}
+    },
+    "searchPlugins": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 180000,
+      "payload": {
+        "query": "string"
+      }
+    },
+    "inspectPlugin": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 180000,
+      "payload": {
+        "pluginId": "string"
+      }
+    },
+    "setPluginEnabled": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 300000,
+      "payload": {
+        "pluginId": "string",
+        "enabled": "boolean",
+        "acceptCapabilities": "boolean"
+      }
+    },
+    "reloadPlugin": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 300000,
+      "payload": {
+        "pluginId": "string",
+        "acceptCapabilities": "boolean"
+      }
+    },
+    "updatePlugin": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 1080000,
+      "payload": {
+        "pluginId": "string",
+        "acceptCapabilities": "boolean"
+      }
+    },
+    "uninstallPlugin": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 1080000,
+      "payload": {
+        "pluginId": "string"
+      }
+    },
+    "installPlugin": {
+      "mode": "remote",
+      "domain": "plugin",
+      "timeoutMs": 1080000,
+      "payload": {
+        "packageSpec": "string",
+        "acceptCapabilities": "boolean"
+      }
+    },
     "readSticker": {
       "mode": "remote",
       "domain": "read",

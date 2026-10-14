@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <Resource Include="Assets\OpenClawDebugger.ico" />
     <EmbeddedResource Include="RemoteAgentProgram.py" />
+    <EmbeddedResource Include="RemotePluginOperations.py" />
     <Content Include="WebUi\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Backgrounds\Atri.jpg" Link="WebUi\assets\Atri.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Backgrounds\Luoxi.jpg" Link="WebUi\assets\Luoxi.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
