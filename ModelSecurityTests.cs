@@ -45,6 +45,7 @@ internal static class ModelSecurityTests
 
         public Task<RemoteModelFetchResult> GetSnapshotAsync(ConnectionSettings settings, string? knownConfigHash = null, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<RemoteModelSnapshot> SetOrderAsync(ConnectionSettings settings, string primary, IReadOnlyList<string> fallbacks, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+        public Task<RemoteModelSnapshot> SetImageOrderAsync(ConnectionSettings settings, string? primary, IReadOnlyList<string> fallbacks, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
         public Task<RemoteModelSnapshot> AddModelAsync(ConnectionSettings settings, RemoteModelAddRequest request, CancellationToken cancellationToken = default)
         {

@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const MAX_IMAGE_FALLBACKS = 20;
+
   function create(deps) {
     const { $, bridgeCall, state, setStatus, showToast, reportError, setBusy, isConnected } = deps;
 
@@ -16,7 +18,7 @@
     function allModels(snapshot) {
       if (!snapshot) return [];
       const seen = new Set();
-      return [...selectedModels(snapshot), ...(snapshot.available || [])].filter(model => {
+      return [...selectedModels(snapshot), snapshot.imagePrimary, ...(snapshot.imageFallbacks || []), ...(snapshot.available || [])].filter(model => {
         const id = model && model.id ? String(model.id) : '';
         if (!id || seen.has(id.toLowerCase())) return false;
         seen.add(id.toLowerCase());
@@ -26,6 +28,20 @@
 
     function allModelIds(snapshot) {
       return allModels(snapshot).map(model => model.id);
+    }
+
+    function imageFallbackIds(snapshot) {
+      return (snapshot && snapshot.imageFallbacks || []).map(model => model.id);
+    }
+
+    function imageModelCandidates(snapshot) {
+      const configured = new Set([snapshot && snapshot.imagePrimary, ...(snapshot && snapshot.imageFallbacks || [])]
+        .filter(Boolean).map(model => String(model.id).toLowerCase()));
+      return allModels(snapshot).filter(model => {
+        if (configured.has(String(model.id).toLowerCase())) return true;
+        if (!Array.isArray(model.input) || model.input.length === 0) return true;
+        return model.input.some(value => String(value).toLowerCase() === 'image');
+      });
     }
 
     function latencyInfo(model) {
@@ -91,10 +107,17 @@
       return value === null || value === undefined || value === '' ? fallback : String(value);
     }
 
+    function imageInputLabel(model) {
+      if (!Array.isArray(model && model.input)) return '未声明';
+      const input = model.input.map(value => String(value).toLowerCase());
+      if (input.includes('image')) return '支持图像';
+      return input.includes('text') ? '仅文本' : '未声明';
+    }
+
     function modelSignature(model, suffix = '') {
       return [model.id, model.name, model.provider, model.alias || '', model.status || '',
         model.latencyMs ?? '', model.lastTestedAtUtc || '', model.lastError || '',
-        model.latencyMeasurement || '', suffix].join('\u001f');
+        model.latencyMeasurement || '', (model.input || []).join(','), suffix].join('\u001f');
     }
 
     function updateOrderRow(row, model, index) {
@@ -106,7 +129,7 @@
       row.querySelector('.model-order-index').textContent = String(index + 1);
       renderProviderMark(row.querySelector('.model-provider-badge'), model, true);
       row.querySelector('.model-order-main strong').textContent = safeText(model.name, model.id);
-      row.querySelector('.model-order-main small').textContent = model.provider + ' · ' + model.id + (model.alias ? ' · ' + model.alias : '');
+      row.querySelector('.model-order-main small').textContent = model.provider + ' · ' + model.id + ' · ' + imageInputLabel(model) + (model.alias ? ' · ' + model.alias : '');
       row.querySelector('.model-order-role').textContent = index === 0 ? '当前' : '备选 ' + index;
       renderLatency(row.querySelector('.model-latency'), model);
       row.classList.toggle('model-primary-row', index === 0);
@@ -176,6 +199,88 @@
       }
       $('#modelCurrentStatus').textContent = current ? safeText(current.status, 'unknown') : '—';
       $('#modelCurrentTested').textContent = current && current.lastTestedAtUtc ? new Date(current.lastTestedAtUtc).toLocaleString() : '尚未测试';
+      $('#modelCurrentImageInput').textContent = current ? imageInputLabel(current) : '未声明';
+    }
+
+    function imageControlsLocked() {
+      return !isConnected() || !state.snapshot || state.loading || state.refreshing || state.testing || state.saving || state.adding;
+    }
+
+    function renderImageSelectors(snapshot) {
+      const primarySelect = $('#imageModelPrimarySelect');
+      const fallbackSelect = $('#imageModelFallbackSelect');
+      const primary = snapshot && snapshot.imagePrimary;
+      const fallbackIds = new Set(imageFallbackIds(snapshot).map(id => String(id).toLowerCase()));
+      const candidates = imageModelCandidates(snapshot);
+      primarySelect.replaceChildren(new Option('选择图像识别主模型', ''), ...candidates.map(model =>
+        new Option(`${safeText(model.provider, '—')} · ${safeText(model.name, model.id)} · ${imageInputLabel(model)}`, model.id)));
+      primarySelect.value = primary ? primary.id : '';
+      const primaryKey = String(primary && primary.id || '').toLowerCase();
+      const fallbackCandidates = candidates.filter(model => {
+        const key = String(model.id).toLowerCase();
+        return key !== primaryKey && !fallbackIds.has(key);
+      });
+      fallbackSelect.replaceChildren(new Option('选择图像备选模型', ''), ...fallbackCandidates.map(model =>
+        new Option(`${safeText(model.provider, '—')} · ${safeText(model.name, model.id)} · ${imageInputLabel(model)}`, model.id)));
+      const locked = imageControlsLocked();
+      primarySelect.disabled = locked;
+      fallbackSelect.disabled = locked || fallbackCandidates.length === 0 || imageFallbackIds(snapshot).length >= MAX_IMAGE_FALLBACKS;
+      $('#addImageModelFallbackButton').disabled = locked || !fallbackSelect.value || imageFallbackIds(snapshot).length >= MAX_IMAGE_FALLBACKS;
+    }
+
+    function createImageFallbackRow(model, index, total) {
+      const row = document.createElement('div');
+      row.className = 'model-image-fallback-row';
+      row.dataset.index = String(index);
+      const number = document.createElement('span');
+      number.className = 'model-image-fallback-index';
+      number.textContent = String(index + 1);
+      const copy = document.createElement('span');
+      copy.className = 'model-image-fallback-main';
+      const name = document.createElement('strong');
+      name.textContent = safeText(model.name, model.id);
+      const reference = document.createElement('small');
+      reference.textContent = `${safeText(model.provider, '—')} · ${model.id} · ${imageInputLabel(model)}`;
+      copy.append(name, reference);
+      const actions = document.createElement('span');
+      actions.className = 'model-image-fallback-actions';
+      actions.append(
+        createImageFallbackButton('up', '↑', '上移', index === 0),
+        createImageFallbackButton('down', '↓', '下移', index === total - 1),
+        createImageFallbackButton('remove', '×', '移除', false));
+      row.append(number, copy, actions);
+      return row;
+    }
+
+    function createImageFallbackButton(action, label, title, disabled) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'button button-quiet model-image-action';
+      button.dataset.imageFallbackAction = action;
+      button.dataset.boundary = String(disabled);
+      button.textContent = label;
+      button.title = title;
+      button.setAttribute('aria-label', title);
+      button.disabled = disabled || imageControlsLocked();
+      return button;
+    }
+
+    function renderImageFallbacks(snapshot) {
+      const list = $('#imageModelFallbackList');
+      const models = snapshot && snapshot.imageFallbacks || [];
+      list.replaceChildren();
+      if (!models.length) {
+        list.className = 'model-image-fallback-list empty-state';
+        list.textContent = '尚未设置图像识别备选模型。';
+        return;
+      }
+      list.className = 'model-image-fallback-list';
+      models.forEach((model, index) => list.appendChild(createImageFallbackRow(model, index, models.length)));
+    }
+
+    function renderImageRoute(snapshot) {
+      renderImageSelectors(snapshot);
+      renderImageFallbacks(snapshot);
     }
 
     function renderOrder(snapshot) {
@@ -209,7 +314,7 @@
       if (row.dataset.modelSignature === signature) return;
       renderProviderMark(row.querySelector('.model-provider-badge'), model, true);
       row.querySelector('strong').textContent = safeText(model.name, model.id);
-      row.querySelector('small').textContent = model.provider + ' · ' + model.id;
+      row.querySelector('small').textContent = model.provider + ' · ' + model.id + ' · ' + imageInputLabel(model);
       renderLatency(row.querySelector('.model-latency'), model);
       row.querySelector('.model-use-button').disabled = state.saving || state.refreshing;
       row.dataset.modelSignature = signature;
@@ -252,7 +357,7 @@
       const provider = ($('#modelProviderFilter')?.value || '').trim().toLowerCase();
       const latencyFilter = ($('#modelLatencyFilter')?.value || '').trim().toLowerCase();
       const status = ($('#modelStatusFilter')?.value || '').trim().toLowerCase();
-      const searchText = [model.id, model.name, model.provider, model.alias, model.status]
+      const searchText = [model.id, model.name, model.provider, model.alias, model.status, imageInputLabel(model)]
         .filter(Boolean).join(' ').toLowerCase();
       if (query && !searchText.includes(query)) return false;
       if (provider && String(model.provider || '').toLowerCase() !== provider) return false;
@@ -333,9 +438,10 @@
       const snapshot = state.snapshot;
       renderCurrent(snapshot);
       renderOrder(snapshot);
+      renderImageRoute(snapshot);
       renderAvailable(snapshot);
       const count = selectedModels(snapshot).length;
-      $('#modelOrderCount').textContent = count ? count + ' 个已选模型' : '未配置';
+      $('#modelOrderCount').textContent = count ? '主对话链 · ' + count + ' 个模型' : '主对话链未配置';
       if (snapshot && snapshot.cacheSource === 'cache' && snapshot.cacheSavedAtUtc) {
         $('#modelRetrievedAt').textContent = '缓存于 ' + new Date(snapshot.cacheSavedAtUtc).toLocaleString();
       }
@@ -385,10 +491,15 @@
       const connected = isConnected();
       const testButton = $('#testModelLatencyButton');
       const canTest = allModelIds(state.snapshot).length > 0;
+      const imageLocked = imageControlsLocked();
       testButton.disabled = !connected || state.loading || state.refreshing || state.saving || state.adding || (!state.testing && !canTest);
       testButton.innerHTML = state.testing ? '✕ <span>取消测试</span>' : '◌ <span>测试延迟</span>';
       testButton.title = state.testing ? '取消当前模型延迟测试' : '一次性测试当前、备选和全部可用模型，最多 10 个并发';
       $('#addModelButton').disabled = !connected || state.loading || state.refreshing || state.testing || state.saving || state.adding;
+      $('#imageModelPrimarySelect').disabled = imageLocked;
+      $('#imageModelFallbackSelect').disabled = imageLocked || $('#imageModelFallbackSelect').options.length <= 1 || imageFallbackIds(state.snapshot).length >= MAX_IMAGE_FALLBACKS;
+      $('#addImageModelFallbackButton').disabled = imageLocked || !$('#imageModelFallbackSelect').value || imageFallbackIds(state.snapshot).length >= MAX_IMAGE_FALLBACKS;
+      $('#imageModelFallbackList').querySelectorAll('.model-image-action').forEach(button => { button.disabled = imageLocked || button.dataset.boundary === 'true'; });
       document.body.classList.toggle('model-operation-active', state.refreshing || state.testing || state.saving || state.adding);
       if (state.loading) {
         const phaseText = {
@@ -400,7 +511,7 @@
       }
       else if (state.refreshing) $('#modelLatencyStatus').textContent = '缓存已加载，正在更新模型列表……';
       else if (state.testing) $('#modelLatencyStatus').textContent = '正在并发探测模型首响应（最多 10 个同时进行）…';
-      else if (state.saving) $('#modelLatencyStatus').textContent = state.pendingOrder ? '正在保存当前顺序，下一次加入已排队…' : '正在把拖拽后的顺序写入服务器…';
+      else if (state.saving) $('#modelLatencyStatus').textContent = state.savingImage ? '正在写入图像识别模型链…' : state.pendingOrder ? '正在保存当前顺序，下一次加入已排队…' : '正在把拖拽后的顺序写入服务器…';
       else if (state.adding) $('#modelLatencyStatus').textContent = '正在写入新模型配置…';
       else if (!state.snapshot) $('#modelLatencyStatus').textContent = connected ? '点击“测试延迟”或加载模型配置。' : '连接服务器后读取模型配置。';
       else if (state.snapshot && state.snapshot.refreshError) $('#modelLatencyStatus').textContent = '模型缓存已加载，最新清单更新失败，已保留缓存。';
@@ -550,6 +661,7 @@
       setStatus(actionText + '，正在写入服务器…');
       render();
       state.saving = true;
+      state.savingImage = false;
       state.orderController?.abort();
       const controller = new AbortController();
       const generation = ++state.orderGeneration;
@@ -574,6 +686,96 @@
           const pending = state.pendingOrder;
           state.pendingOrder = null;
           state.saving = false;
+          state.savingImage = false;
+          syncButtons();
+          render();
+          if (pending && isConnected()) void persistOrder(pending);
+        }
+      }
+    }
+
+    function changeImagePrimary() {
+      const primary = $('#imageModelPrimarySelect').value;
+      if (!primary) { renderImageRoute(state.snapshot); return; }
+      const fallbacks = imageFallbackIds(state.snapshot).filter(id => String(id).toLowerCase() !== primary.toLowerCase());
+      void persistImageOrder(primary, fallbacks);
+    }
+
+    function addImageFallback() {
+      const modelId = $('#imageModelFallbackSelect').value;
+      if (!modelId) return;
+      void persistImageOrder(state.snapshot && state.snapshot.imagePrimary && state.snapshot.imagePrimary.id || '',
+        [...imageFallbackIds(state.snapshot), modelId]);
+    }
+
+    function moveImageFallback(index, direction) {
+      const ids = imageFallbackIds(state.snapshot);
+      const target = index + direction;
+      if (target < 0 || target >= ids.length) return;
+      [ids[index], ids[target]] = [ids[target], ids[index]];
+      const primary = state.snapshot && state.snapshot.imagePrimary;
+      void persistImageOrder(primary ? primary.id : '', ids);
+    }
+
+    function handleImageFallbackAction(event) {
+      const button = event.target.closest('button[data-image-fallback-action]');
+      if (!button || imageControlsLocked()) return;
+      const row = button.closest('.model-image-fallback-row');
+      const index = Number(row && row.dataset.index);
+      const ids = imageFallbackIds(state.snapshot);
+      if (!Number.isInteger(index) || index < 0 || index >= ids.length) return;
+      if (button.dataset.imageFallbackAction === 'remove') ids.splice(index, 1);
+      else moveImageFallback(index, button.dataset.imageFallbackAction === 'up' ? -1 : 1);
+      if (button.dataset.imageFallbackAction === 'remove') {
+        const primary = state.snapshot && state.snapshot.imagePrimary;
+        void persistImageOrder(primary ? primary.id : '', ids);
+      }
+    }
+
+    async function persistImageOrder(primaryId, fallbackIds) {
+      if (!isConnected() || state.loading || state.refreshing || state.testing || state.adding || !state.snapshot) return;
+      if (state.saving) { showToast('当前有模型配置正在保存，请稍后再试。', true); return; }
+      const source = state.snapshot;
+      const byId = new Map(allModels(source).map(model => [String(model.id).toLowerCase(), model]));
+      const primaryKey = String(primaryId || '').toLowerCase();
+      const models = fallbackIds.map(id => byId.get(String(id).toLowerCase()));
+      const keys = fallbackIds.map(id => String(id).toLowerCase());
+      if ((primaryKey && !byId.has(primaryKey)) || models.some(model => !model) || keys.length > MAX_IMAGE_FALLBACKS ||
+          new Set(keys).size !== keys.length || (primaryKey && keys.includes(primaryKey))) {
+        showToast('图像识别模型链包含无效或重复模型。', true);
+        renderImageRoute(source);
+        return;
+      }
+      state.snapshot = { ...source, imagePrimary: primaryKey ? byId.get(primaryKey) : null, imageFallbacks: models };
+      state.snapshotCachedAt = Date.now();
+      state.saving = true;
+      state.savingImage = true;
+      const controller = new AbortController();
+      const generation = ++state.imageOrderGeneration;
+      state.imageOrderController = controller;
+      setStatus('正在保存图像识别模型链…');
+      syncButtons();
+      render();
+      try {
+        const result = await bridgeCall('setImageModelOrder', { primary: primaryKey ? byId.get(primaryKey).id : '', fallbacks: models.map(model => model.id) }, { signal: controller.signal });
+        if (generation !== state.imageOrderGeneration || controller.signal.aborted) return;
+        applySnapshot(result);
+        render();
+        setStatus('图像识别模型链已保存到服务器。');
+        showToast('图像识别模型设置已保存。');
+      } catch (error) {
+        if (generation !== state.imageOrderGeneration || controller.signal.aborted) return;
+        state.snapshot = source;
+        render();
+        reportError(error);
+        showToast('图像识别模型设置保存失败，已恢复原配置。', true);
+      } finally {
+        if (state.imageOrderController === controller) state.imageOrderController = null;
+        if (generation === state.imageOrderGeneration) {
+          const pending = state.pendingOrder;
+          state.pendingOrder = null;
+          state.saving = false;
+          state.savingImage = false;
           syncButtons();
           render();
           if (pending && isConnected()) void persistOrder(pending);
@@ -649,7 +851,8 @@
         displayName: $('#modelDisplayNameInput').value.trim(),
         alias: $('#modelAliasInput').value.trim(),
         baseUrl: $('#modelBaseUrlInput').value.trim(),
-        apiKey: $('#modelApiKeyInput').value
+        apiKey: $('#modelApiKeyInput').value,
+        inputMode: $('#modelInputModeInput').value
       };
       if (!payload.modelRef.includes('/')) { showToast('模型引用请填写 provider/model。', true); return; }
       state.adding = true;
@@ -663,8 +866,8 @@
         applySnapshot(result);
         $('#modelAddDialog').close('saved');
         render();
-        setStatus('新模型已登记，可拖到当前模型或备选列表。');
-        showToast('新模型已添加。');
+        setStatus('模型配置已保存，可拖到当前模型或备选列表。');
+        showToast('模型配置已保存。');
       } catch (error) {
         if (!controller.signal.aborted && !(error && error.name === 'AbortError')) reportError(error);
       } finally {
@@ -677,13 +880,14 @@
       state.loadGeneration++;
       state.testGeneration++;
       state.orderGeneration++;
+      state.imageOrderGeneration++;
       state.addGeneration++;
       state.refreshGeneration++;
-      state.loadController?.abort(); state.refreshController?.abort(); state.testController?.abort(); state.orderController?.abort(); state.addController?.abort();
+      state.loadController?.abort(); state.refreshController?.abort(); state.testController?.abort(); state.orderController?.abort(); state.imageOrderController?.abort(); state.addController?.abort();
       clearLoadPhaseTimer();
       state.loadPromise = null; state.refreshPromise = null;
       state.snapshot = null; state.snapshotCachedAt = 0; state.cacheSource = ''; state.cacheSavedAtUtc = null;
-      state.loading = false; state.refreshing = false; state.loadPhase = ''; state.testing = false; state.saving = false; state.adding = false;
+      state.loading = false; state.refreshing = false; state.loadPhase = ''; state.testing = false; state.saving = false; state.savingImage = false; state.adding = false;
       state.draggedId = null; state.pendingOrder = null;
       render();
     }
@@ -692,6 +896,10 @@
       const element = $('#' + id);
       element?.addEventListener(id === 'modelSearch' ? 'input' : 'change', () => render());
     });
+    $('#imageModelPrimarySelect').addEventListener('change', changeImagePrimary);
+    $('#imageModelFallbackSelect').addEventListener('change', syncButtons);
+    $('#addImageModelFallbackButton').addEventListener('click', addImageFallback);
+    $('#imageModelFallbackList').addEventListener('click', handleImageFallbackAction);
     return { load, render, testLatency, openAddDialog, submitAdd, reset, syncButtons };
   }
 

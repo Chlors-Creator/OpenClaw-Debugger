@@ -12,7 +12,8 @@ public sealed record RemoteModelInfo(
     int? LatencyMs = null,
     DateTimeOffset? LastTestedAtUtc = null,
     string? LastError = null,
-    string? LatencyMeasurement = null);
+    string? LatencyMeasurement = null,
+    IReadOnlyList<string>? Input = null);
 
 public sealed record RemoteModelLatencyResult(
     string ModelId,
@@ -27,7 +28,9 @@ public sealed record RemoteModelSnapshot(
     IReadOnlyList<RemoteModelInfo> Fallbacks,
     IReadOnlyList<RemoteModelInfo> Available,
     DateTimeOffset RetrievedAtUtc,
-    string? ConfigHash = null);
+    string? ConfigHash = null,
+    RemoteModelInfo? ImagePrimary = null,
+    IReadOnlyList<RemoteModelInfo>? ImageFallbacks = null);
 
 public sealed record RemoteModelFetchResult(RemoteModelSnapshot Snapshot, bool Unchanged);
 
@@ -36,12 +39,14 @@ public sealed record RemoteModelAddRequest(
     string Alias,
     string DisplayName,
     string BaseUrl,
-    string ApiKey);
+    string ApiKey,
+    string InputMode = "auto");
 
 public interface IRemoteModelClient
 {
     Task<RemoteModelFetchResult> GetSnapshotAsync(ConnectionSettings settings, string? knownConfigHash = null, CancellationToken cancellationToken = default);
     Task<RemoteModelSnapshot> SetOrderAsync(ConnectionSettings settings, string primary, IReadOnlyList<string> fallbacks, CancellationToken cancellationToken = default);
+    Task<RemoteModelSnapshot> SetImageOrderAsync(ConnectionSettings settings, string? primary, IReadOnlyList<string> fallbacks, CancellationToken cancellationToken = default);
     Task<RemoteModelSnapshot> AddModelAsync(ConnectionSettings settings, RemoteModelAddRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RemoteModelLatencyResult>> TestLatencyAsync(ConnectionSettings settings, IReadOnlyList<string> modelIds, CancellationToken cancellationToken = default);
 }
@@ -85,6 +90,22 @@ public sealed class RemoteModelClient : IRemoteModelClient
         return ParseSnapshot(response);
     }
 
+    public async Task<RemoteModelSnapshot> SetImageOrderAsync(
+        ConnectionSettings settings,
+        string? primary,
+        IReadOnlyList<string> fallbacks,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new JsonObject
+        {
+            ["action"] = "models_set_image_order",
+            ["primary"] = primary ?? "",
+            ["fallbacks"] = new JsonArray(fallbacks.Select(item => JsonValue.Create(item)).ToArray())
+        };
+        var response = await _remote.InvokeModelAsync(settings, request, cancellationToken);
+        return ParseSnapshot(response);
+    }
+
     public async Task<RemoteModelSnapshot> AddModelAsync(
         ConnectionSettings settings,
         RemoteModelAddRequest request,
@@ -103,7 +124,8 @@ public sealed class RemoteModelClient : IRemoteModelClient
             ["alias"] = request.Alias,
             ["displayName"] = request.DisplayName,
             ["baseUrl"] = request.BaseUrl,
-            ["apiKey"] = apiKey
+            ["apiKey"] = apiKey,
+            ["inputMode"] = request.InputMode
         };
         var response = await _remote.InvokeModelAsync(settings, payload, cancellationToken);
         return ParseSnapshot(response);
@@ -141,8 +163,10 @@ public sealed class RemoteModelClient : IRemoteModelClient
         var primary = ParseModel(response["primary"] as JsonObject);
         var fallbacks = ParseModels(response["fallbacks"]?.AsArray());
         var available = ParseModels(response["available"]?.AsArray());
+        var imagePrimary = ParseModel(response["imagePrimary"] as JsonObject);
+        var imageFallbacks = ParseModels(response["imageFallbacks"]?.AsArray());
         var retrieved = ParseDateTime(GetString(response["retrievedAtUtc"])) ?? DateTimeOffset.UtcNow;
-        return new RemoteModelSnapshot(primary, fallbacks, available, retrieved, GetString(response["configHash"]));
+        return new RemoteModelSnapshot(primary, fallbacks, available, retrieved, GetString(response["configHash"]), imagePrimary, imageFallbacks);
     }
 
     private static IReadOnlyList<RemoteModelInfo> ParseModels(JsonArray? array)
@@ -165,7 +189,18 @@ public sealed class RemoteModelClient : IRemoteModelClient
             GetInt(node["latencyMs"]),
             ParseDateTime(GetString(node["lastTestedAtUtc"])),
             GetString(node["lastError"]),
-            GetString(node["latencyMeasurement"]));
+            GetString(node["latencyMeasurement"]),
+            GetStringArray(node["input"]));
+    }
+
+    private static IReadOnlyList<string>? GetStringArray(JsonNode? node)
+    {
+        if (node is not JsonArray array) return null;
+        return array.OfType<JsonValue>()
+            .Select(value => value.TryGetValue<string>(out var item) ? item : null)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item!)
+            .ToArray();
     }
 
     private static string? GetString(JsonNode? node) =>

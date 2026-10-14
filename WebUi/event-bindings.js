@@ -137,6 +137,7 @@
       appState.model.loadController?.abort();
       appState.model.testController?.abort();
       appState.model.orderController?.abort();
+      appState.model.imageOrderController?.abort();
       appState.model.addController?.abort();
       appState.plugin.loadController?.abort();
       appState.plugin.searchController?.abort();

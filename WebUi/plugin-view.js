@@ -53,7 +53,7 @@
     list.classList.remove('empty-state');
   }
 
-  function renderPluginActions(plugin, id, busy) {
+  function renderActions(plugin, id, busy) {
     const actions = document.createElement('div');
     actions.className = 'plugin-card-actions';
     if (!id) return actions;
@@ -77,7 +77,7 @@
     const details = [plugin.version, plugin.source, plugin.dependencyStatus].filter(value => value !== undefined && value !== null && value !== '');
     if (details.length) card.appendChild(textElement('small', 'plugin-meta', details.map(String).join(' · ')));
     if (plugin.description) card.appendChild(textElement('p', 'plugin-description', String(plugin.description)));
-    card.appendChild(renderPluginActions(plugin, id, busy));
+    card.appendChild(renderActions(plugin, id, busy));
     return card;
   }
 
@@ -102,57 +102,9 @@
       list.textContent = state.loaded ? '没有匹配的已安装插件。' : '连接服务器后读取插件清单';
       return;
     }
-    const busy = state.loading || state.searching || state.mutating || controller.connectionState.busy || !controller.isConnected();
+    const busy = state.loading || state.mutating || controller.connectionState.busy || !controller.isConnected();
     for (const plugin of visible) list.appendChild(renderPluginCard(plugin, busy));
   }
 
-  function searchSpec(item) {
-    const explicit = item.installSpec || item.packageSpec;
-    if (typeof explicit === 'string' && explicit) return explicit;
-    const id = item.id || item.slug;
-    return typeof id === 'string' && id ? 'clawhub:' + id : '';
-  }
-
-  function renderInstallSpecButton(controller, spec) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'button button-quiet';
-    button.dataset.pluginSpec = spec;
-    button.textContent = '填入安装来源';
-    button.disabled = controller.state.searching || controller.state.mutating || controller.connectionState.busy;
-    return button;
-  }
-
-  function renderSearchCard(controller, item) {
-    const card = document.createElement('article');
-    card.className = 'plugin-search-card';
-    const title = item.name || item.title || item.id || item.slug || '搜索结果';
-    const id = item.id || item.slug || '';
-    card.appendChild(textElement('strong', '', String(title)));
-    if (id) card.appendChild(textElement('code', 'plugin-id', String(id)));
-    if (item.description) card.appendChild(textElement('p', 'plugin-description', String(item.description)));
-    const spec = searchSpec(item);
-    if (spec) card.appendChild(renderInstallSpecButton(controller, spec));
-    return card;
-  }
-
-  function renderRawSearchResult(container, result) {
-    container.classList.remove('empty-state');
-    container.append(textElement('p', 'plugin-format-error', '搜索返回了非列表 JSON，原始结果如下：'));
-    container.appendChild(textElement('pre', 'plugin-json plugin-raw-list', JSON.stringify(result, null, 2)));
-  }
-
-  function renderSearchResults(controller) {
-    const container = controller.$('#pluginSearchResults');
-    const response = controller.state.searchResponse;
-    const items = response ? resultArray(response) : null;
-    container.replaceChildren();
-    container.classList.toggle('empty-state', !items || items.length === 0);
-    if (!response) { container.textContent = '搜索结果会显示在这里'; return; }
-    if (!items) { renderRawSearchResult(container, resultValue(response)); return; }
-    if (!items.length) { container.textContent = '没有找到匹配的插件。'; return; }
-    for (const item of items) container.appendChild(renderSearchCard(controller, item));
-  }
-
-  window.OpenClawPluginView = { resultValue, resultArray, diagnostics, renderInstalled, renderSearchResults };
+  window.OpenClawPluginView = { resultValue, resultArray, diagnostics, renderInstalled };
 })();

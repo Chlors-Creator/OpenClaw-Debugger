@@ -4,14 +4,13 @@
   function create(deps) {
     const controller = { ...deps, view: window.OpenClawPluginView };
     controller.load = force => load(controller, force);
-    controller.search = () => search(controller);
     controller.renderInstalled = () => controller.view.renderInstalled(controller);
     controller.installFromInput = () => installFromInputSafely(controller);
-    controller.setInstallSpec = spec => setInstallSpec(controller, spec);
+    controller.installSpec = spec => installSpecSafely(controller, spec);
+    controller.canInstall = () => canInstall(controller);
     controller.handleAction = (action, id) => handleAction(controller, action, id);
     controller.syncButtons = () => syncButtons(controller);
     controller.reset = () => reset(controller);
-    controller.$('#pluginSearchInput').addEventListener('input', controller.syncButtons);
     controller.$('#pluginPackageInput').addEventListener('input', controller.syncButtons);
     return controller;
   }
@@ -32,7 +31,7 @@
       storeInstalled(controller, response);
       return !state.listFormatError;
     } catch (error) {
-      reportOperationError(controller, error, '读取插件清单失败：');
+      reportOperationError(controller, error, '读取插件清单失败：', '#pluginStatus');
       return false;
     } finally {
       finishLoad(controller, generation);
@@ -61,51 +60,9 @@
     syncButtons(controller);
   }
 
-  async function search(controller) {
-    const state = controller.state;
-    const query = controller.$('#pluginSearchInput').value.trim();
-    if (!query || state.searching || !controller.isConnected()) return;
-    const generation = ++state.searchGeneration;
-    state.searchController?.abort();
-    const operation = new AbortController();
-    state.searchController = operation;
-    state.searching = true;
-    controller.$('#pluginSearchStatus').textContent = '正在搜索 ClawHub…';
-    syncButtons(controller);
-    try {
-      const response = await controller.bridgeCall('searchPlugins', { query }, { signal: operation.signal });
-      if (generation !== state.searchGeneration) return;
-      storeSearch(controller, response);
-    } catch (error) {
-      reportOperationError(controller, error, '搜索失败：');
-    } finally {
-      finishSearch(controller, generation);
-    }
-  }
-
-  function storeSearch(controller, response) {
-    const state = controller.state;
-    state.searchResponse = response;
-    const items = controller.view.resultArray(response);
-    const status = items === null ? '搜索结果格式无法识别' : '找到 ' + items.length + ' 个结果';
-    controller.view.renderSearchResults(controller);
-    controller.$('#pluginSearchStatus').textContent = status + controller.view.diagnostics(response);
-    if (response.diagnostics) controller.setStatus(status + controller.view.diagnostics(response), true);
-  }
-
-  function finishSearch(controller, generation) {
-    const state = controller.state;
-    if (generation !== state.searchGeneration) return;
-    state.searching = false;
-    state.searchController = null;
-    controller.view.renderSearchResults(controller);
-    syncButtons(controller);
-  }
-
-  function reportOperationError(controller, error, prefix) {
+  function reportOperationError(controller, error, prefix, target) {
     if (error && error.name === 'AbortError') return;
-    controller.$('#pluginStatus').textContent = prefix + String(error && error.message || error);
-    controller.$('#pluginSearchStatus').textContent = prefix + String(error && error.message || error);
+    controller.$(target).textContent = prefix + String(error && error.message || error);
     controller.reportError(error);
   }
 
@@ -176,19 +133,28 @@
 
   function handleAction(controller, action, id) {
     const handler = actionMap(controller)[action];
-    if (handler && id) handler(id).catch(controller.reportError);
+    if (handler && id) handler(id).catch(error => reportOperationError(controller, error, '插件操作失败：', '#pluginStatus'));
   }
 
   async function installFromInputSafely(controller) {
     try { await installFromInput(controller); }
-    catch (error) { controller.reportError(error); }
+    catch (error) { reportOperationError(controller, error, '插件操作失败：', '#pluginStatus'); }
   }
 
   async function installFromInput(controller) {
     const packageSpec = controller.$('#pluginPackageInput').value.trim();
-    if (!packageSpec) return;
+    await requestInstall(controller, packageSpec);
+  }
+
+  async function installSpecSafely(controller, packageSpec) {
+    try { await requestInstall(controller, packageSpec); }
+    catch (error) { reportOperationError(controller, error, '插件安装失败：', '#pluginStatus'); }
+  }
+
+  async function requestInstall(controller, packageSpec) {
+    if (!packageSpec || !canInstall(controller)) return;
     const accepted = await askConfirmation(controller, '安装插件（保持禁用）',
-      '插件包会下载到服务器。本次默认使用 --no-enable，安装后仍需检查详情并单独启用。', packageSpec,
+      '将从 ClawHub 下载插件并部署到服务器。本次默认使用 --no-enable，安装后仍需检查详情并单独启用。', packageSpec,
       '我信任此来源，并接受该插件声明的 capability；只有勾选后才会发送授权参数。');
     if (accepted === null) return;
     await mutate(controller, 'installPlugin', { packageSpec, acceptCapabilities: accepted }, '已安装插件并保持禁用：' + packageSpec);
@@ -214,44 +180,33 @@
     finally { controller.state.mutating = false; syncButtons(controller); }
   }
 
-  function setInstallSpec(controller, spec) {
-    controller.$('#pluginPackageInput').value = spec;
-    controller.$('#pluginPackageInput').focus();
-    controller.showToast('已填入安装来源；点击“安装”后仍需确认。');
-    syncButtons(controller);
+  function canInstall(controller) {
+    return controller.isConnected() && !controller.state.mutating && !controller.connectionState.busy;
   }
 
   function syncButtons(controller) {
     const state = controller.state;
     const connected = controller.isConnected();
-    const busy = state.loading || state.searching || state.mutating || controller.connectionState.busy || !connected;
+    const busy = state.loading || state.mutating || controller.connectionState.busy || !connected;
     controller.$('#pluginRefreshButton').disabled = busy;
-    controller.$('#pluginSearchButton').disabled = busy || !controller.$('#pluginSearchInput').value.trim();
     controller.$('#pluginInstallButton').disabled = busy || !controller.$('#pluginPackageInput').value.trim();
     controller.$$('#pluginList [data-plugin-action]').forEach(button => { button.disabled = busy; });
-    controller.$$('#pluginSearchResults [data-plugin-spec]').forEach(button => { button.disabled = busy; });
   }
 
   function reset(controller) {
     const state = controller.state;
     state.loadController?.abort();
-    state.searchController?.abort();
     state.loadGeneration += 1;
-    state.searchGeneration += 1;
     state.installed = [];
     state.installedRaw = null;
     state.listFormatError = false;
-    state.searchResponse = null;
     state.loaded = false;
     state.loading = false;
-    state.searching = false;
     state.mutating = false;
     controller.$('#pluginCount').textContent = '0';
     controller.$('#pluginListCount').textContent = '0';
     controller.$('#pluginStatus').textContent = '连接服务器后读取插件状态。';
-    controller.$('#pluginSearchStatus').textContent = '输入关键词后搜索 ClawHub。';
     controller.view.renderInstalled(controller);
-    controller.view.renderSearchResults(controller);
     syncButtons(controller);
   }
 

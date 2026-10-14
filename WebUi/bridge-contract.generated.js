@@ -94,7 +94,8 @@
         "alias": "string",
         "displayName": "string",
         "baseUrl": "string",
-        "apiKey": "string"
+        "apiKey": "string",
+        "inputMode": "string"
       }
     },
     "getPlugins": {

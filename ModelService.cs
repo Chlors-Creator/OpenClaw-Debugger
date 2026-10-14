@@ -116,6 +116,19 @@ public sealed class ModelService : IDisposable
         finally { _setBusy(false); _gate.Release(); }
     }
 
+    public async Task<object> SetImageOrderAsync(JsonElement payload, CancellationToken cancellationToken = default)
+    {
+        var (primary, fallbacks) = ParseImageOrder(payload);
+        await EnterAsync(cancellationToken);
+        try
+        {
+            var snapshot = await _remote.SetImageOrderAsync(_settings(), primary, fallbacks, cancellationToken);
+            var cached = CacheSnapshot(CreateScopeKey(_settings()), snapshot);
+            return ToResponse(_latencies.Apply(snapshot), "remote", cached.SavedAtUtc, false, null);
+        }
+        finally { _setBusy(false); _gate.Release(); }
+    }
+
     public async Task<object> TestLatencyAsync(JsonElement payload, CancellationToken cancellationToken = default)
     {
         var models = ParseModels(payload);
@@ -143,6 +156,8 @@ public sealed class ModelService : IDisposable
                 snapshot.Primary,
                 snapshot.Fallbacks,
                 snapshot.Available,
+                snapshot.ImagePrimary,
+                ImageFallbacks = snapshot.ImageFallbacks ?? Array.Empty<RemoteModelInfo>(),
                 snapshot.RetrievedAtUtc,
                 snapshot.ConfigHash,
                 cacheSource = "remote",
@@ -325,6 +340,8 @@ public sealed class ModelService : IDisposable
         snapshot.Primary,
         snapshot.Fallbacks,
         snapshot.Available,
+        snapshot.ImagePrimary,
+        ImageFallbacks = snapshot.ImageFallbacks ?? Array.Empty<RemoteModelInfo>(),
         snapshot.RetrievedAtUtc,
         snapshot.ConfigHash,
         cacheSource,
@@ -361,6 +378,25 @@ public sealed class ModelService : IDisposable
         return (primary, fallbacks);
     }
 
+    private static (string? Primary, IReadOnlyList<string> Fallbacks) ParseImageOrder(JsonElement payload)
+    {
+        var primary = ReadOptional(payload, "primary", 240);
+        if (primary.Length > 0) primary = ValidateModelRef(primary);
+        if (!payload.TryGetProperty("fallbacks", out var value) || value.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException("图像识别备选模型顺序必须是数组。");
+        var fallbacks = value.EnumerateArray().Select(item =>
+        {
+            if (item.ValueKind != JsonValueKind.String) throw new InvalidDataException("图像识别备选模型必须是字符串。");
+            return ValidateModelRef(item.GetString() ?? "");
+        }).ToList();
+        if (fallbacks.Count > 20) throw new InvalidDataException("图像识别模型最多只能设置 20 个备选模型。");
+        if (primary.Length > 0 && fallbacks.Contains(primary, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidDataException("图像识别主模型不能同时出现在备选列表中。");
+        if (fallbacks.Distinct(StringComparer.OrdinalIgnoreCase).Count() != fallbacks.Count)
+            throw new InvalidDataException("图像识别备选模型不能重复。");
+        return (primary.Length == 0 ? null : primary, fallbacks);
+    }
+
     private static IReadOnlyList<string> ParseModels(JsonElement payload)
     {
         if (!payload.TryGetProperty("models", out var value) || value.ValueKind != JsonValueKind.Array)
@@ -381,11 +417,17 @@ public sealed class ModelService : IDisposable
         var displayName = ReadOptional(payload, "displayName", 180);
         var baseUrl = ReadOptional(payload, "baseUrl", 500);
         var apiKey = ReadOptional(payload, "apiKey", 500);
+        var inputMode = ReadOptional(payload, "inputMode", 16);
+        if (inputMode.Length == 0) inputMode = "auto";
+        if (inputMode is not ("auto" or "text" or "image"))
+            throw new InvalidDataException("模型输入能力必须是 auto、text 或 image。");
+        if (inputMode != "auto" && baseUrl.Length == 0)
+            throw new InvalidDataException("只有填写自定义 API 地址后才能声明模型输入能力。");
         if (baseUrl.Length > 0 && (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo) ||
             !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment)))
             throw new InvalidDataException("API 地址必须是 HTTPS URL，且不能包含用户名、密码、查询参数或片段。");
-        return new RemoteModelAddRequest(modelRef, alias, displayName, baseUrl, apiKey);
+        return new RemoteModelAddRequest(modelRef, alias, displayName, baseUrl, apiKey, inputMode);
     }
 
     private static string ReadModelRef(JsonElement payload, string property)

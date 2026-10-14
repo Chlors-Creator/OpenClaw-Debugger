@@ -513,9 +513,14 @@ def model_row(value, selected=False):
         provider = str(value.get("provider") or model_provider(ref))
         status = str(value.get("status") or value.get("authStatus") or "unknown")
         alias = value.get("alias") if isinstance(value.get("alias"), str) else None
+        model_input = value.get("input") if isinstance(value.get("input"), list) else None
     else:
         name, provider, status, alias = ref, model_provider(ref), "unknown", None
-    return {"id": ref, "name": name, "provider": provider, "status": status, "alias": alias}
+        model_input = None
+    row = {"id": ref, "name": name, "provider": provider, "status": status, "alias": alias}
+    if model_input is not None:
+        row["input"] = [item.strip().lower() for item in model_input if isinstance(item, str) and item.strip()]
+    return row
 
 def nested_model_value(status):
     if not isinstance(status, dict):
@@ -554,6 +559,30 @@ def configured_fallbacks(status):
             return [value for value in values if valid_model_ref(value)]
     return []
 
+def configured_image_order(config=None):
+    if config is None:
+        config = openclaw_config()
+    agents = config.get("agents") if isinstance(config, dict) else None
+    defaults = agents.get("defaults") if isinstance(agents, dict) else None
+    image_model = defaults.get("imageModel") if isinstance(defaults, dict) else None
+    if isinstance(image_model, str):
+        primary_ref, fallback_values = image_model, []
+    elif isinstance(image_model, dict):
+        primary_ref, fallback_values = image_model.get("primary"), image_model.get("fallbacks", [])
+    else:
+        primary_ref, fallback_values = "", []
+    primary = model_ref(primary_ref)
+    primary = primary if valid_model_ref(primary) else ""
+    fallbacks = []
+    seen = {model_key(primary)} if primary else set()
+    for value in fallback_values if isinstance(fallback_values, list) else []:
+        ref = model_ref(value)
+        key = model_key(ref)
+        if valid_model_ref(ref) and key not in seen:
+            fallbacks.append(ref)
+            seen.add(key)
+    return primary or None, fallbacks
+
 def model_config_source_hash(config=None):
     if config is None:
         config = openclaw_config()
@@ -563,15 +592,26 @@ def model_config_source_hash(config=None):
         encoded = b"{}"
     return hashlib.sha256(encoded).hexdigest()
 
-def model_config_hash(primary, fallbacks, available):
+def model_config_hash(primary, fallbacks, available, image_primary=None, image_fallbacks=None):
     payload = {
         "primary": primary,
         "fallbacks": fallbacks,
+        "imagePrimary": image_primary,
+        "imageFallbacks": image_fallbacks or [],
         # CLI 版本可能改变目录展示顺序，哈希只关心模型内容。
         "available": sorted(available or [], key=lambda row: str(row.get("id", "")).casefold()) if isinstance(available, list) else available,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+def index_model_refs(refs, by_id, available):
+    for ref in refs:
+        key = model_key(ref)
+        if ref and key not in by_id:
+            row = model_row(ref)
+            if row:
+                by_id[key] = row
+                available.append(row)
 
 def models_inventory_core(force=False):
     global MODEL_CACHE, MODEL_CACHE_AT, MODEL_CACHE_SOURCE_HASH
@@ -582,6 +622,7 @@ def models_inventory_core(force=False):
     catalog = openclaw_json(["models", "list", "--json"])
     primary_ref = nested_model_value(status)
     fallback_refs = configured_fallbacks(status)
+    image_primary_ref, image_fallback_refs = configured_image_order()
     catalog_values = catalog.get("models") or catalog.get("items") or catalog.get("data") or []
     if isinstance(catalog_values, dict): catalog_values = list(catalog_values.values())
     available = []
@@ -593,13 +634,7 @@ def models_inventory_core(force=False):
             if key and key not in by_id:
                 by_id[key] = row
                 available.append(row)
-    for ref in [primary_ref] + fallback_refs:
-        key = model_key(ref)
-        if ref and key not in by_id:
-            row = model_row(ref)
-            if row:
-                by_id[key] = row
-                available.append(row)
+    index_model_refs([primary_ref] + fallback_refs + [image_primary_ref] + image_fallback_refs, by_id, available)
     if not primary_ref:
         for value in catalog_values if isinstance(catalog_values, list) else []:
             tags = value.get("tags") if isinstance(value, dict) else None
@@ -607,13 +642,17 @@ def models_inventory_core(force=False):
                 primary_ref = model_ref(value)
                 break
     primary = by_id.get(model_key(primary_ref)) if primary_ref else None
+    image_primary = by_id.get(model_key(image_primary_ref)) if image_primary_ref else None
+    image_fallbacks = [by_id[model_key(ref)] for ref in image_fallback_refs if model_key(ref) in by_id]
     primary_key = model_key(primary_ref)
     fallbacks = [by_id[model_key(ref)] for ref in fallback_refs if model_key(ref) in by_id and model_key(ref) != primary_key]
     selected = {model_key(row["id"]) for row in fallbacks}
     if primary: selected.add(model_key(primary["id"]))
     available = [row for row in available if model_key(row["id"]) not in selected]
-    snapshot = {"ok": True, "primary": primary, "fallbacks": fallbacks, "available": available, "retrievedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-    snapshot["configHash"] = model_config_hash(primary, fallbacks, available)
+    snapshot = {"ok": True, "primary": primary, "fallbacks": fallbacks, "available": available,
+                "imagePrimary": image_primary, "imageFallbacks": image_fallbacks,
+                "retrievedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    snapshot["configHash"] = model_config_hash(primary, fallbacks, available, image_primary, image_fallbacks)
     MODEL_CACHE = snapshot
     MODEL_CACHE_AT = time.monotonic()
     MODEL_CACHE_SOURCE_HASH = source_hash
@@ -666,14 +705,55 @@ def snapshot_with_order(base, primary_ref, fallback_refs):
         if key and key not in selected and key not in available_keys:
             available.append(row)
             available_keys.add(key)
-    snapshot = {"ok": True, "primary": primary, "fallbacks": fallbacks, "available": available, "retrievedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
-    snapshot["configHash"] = model_config_hash(primary, fallbacks, available)
+    image_primary = base.get("imagePrimary")
+    image_fallbacks = base.get("imageFallbacks") or []
+    snapshot = {"ok": True, "primary": primary, "fallbacks": fallbacks, "available": available,
+                "imagePrimary": image_primary, "imageFallbacks": image_fallbacks,
+                "retrievedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    snapshot["configHash"] = model_config_hash(primary, fallbacks, available, image_primary, image_fallbacks)
     return snapshot
 def apply_model_order(primary, fallbacks):
     subprocess.run(["openclaw", "models", "set", primary], check=True, capture_output=True, text=True, timeout=90)
     subprocess.run(["openclaw", "models", "fallbacks", "clear"], check=True, capture_output=True, text=True, timeout=90)
     for ref in fallbacks:
         subprocess.run(["openclaw", "models", "fallbacks", "add", ref], check=True, capture_output=True, text=True, timeout=90)
+
+def apply_image_fallback_order(fallbacks):
+    subprocess.run(["openclaw", "models", "image-fallbacks", "clear"], check=True, capture_output=True, text=True, timeout=90)
+    for ref in fallbacks:
+        subprocess.run(["openclaw", "models", "image-fallbacks", "add", ref], check=True, capture_output=True, text=True, timeout=90)
+
+def models_set_image_order():
+    global MODEL_CACHE, MODEL_CACHE_AT, MODEL_CACHE_SOURCE_HASH
+    primary_value = P.get("primary", "")
+    primary = primary_value.strip() if isinstance(primary_value, str) else ""
+    fallbacks = P.get("fallbacks", [])
+    if (primary and not valid_model_ref(primary)) or not isinstance(fallbacks, list) or len(fallbacks) > 20:
+        fail("图像识别模型顺序参数无效", "bad_image_model_order")
+    fallbacks = [item.strip() if isinstance(item, str) else "" for item in fallbacks]
+    fallback_keys = [model_key(item) for item in fallbacks]
+    if (any(not valid_model_ref(item) for item in fallbacks) or len(set(fallback_keys)) != len(fallback_keys)
+            or (primary and model_key(primary) in fallback_keys)):
+        fail("图像识别模型顺序包含无效或重复项目", "bad_image_model_order")
+    before = MODEL_CACHE or models_inventory_core()
+    old_primary = (before.get("imagePrimary") or {}).get("id", "")
+    old_fallbacks = [item.get("id") for item in before.get("imageFallbacks", [])]
+    try:
+        apply_image_fallback_order(fallbacks)
+        if primary:
+            subprocess.run(["openclaw", "models", "set-image", primary], check=True, capture_output=True, text=True, timeout=90)
+    except Exception as error:
+        try:
+            apply_image_fallback_order(old_fallbacks)
+            if valid_model_ref(old_primary):
+                subprocess.run(["openclaw", "models", "set-image", old_primary], check=True, capture_output=True, text=True, timeout=90)
+        except Exception as rollback_error:
+            fail("图像识别模型保存失败，且恢复备选项失败：" + redact_cli_error(rollback_error), "image_model_rollback_failed")
+        fail("图像识别模型保存失败，已恢复旧备选项：" + redact_cli_error(error), "image_model_order_failed")
+    MODEL_CACHE = models_inventory_core(force=True)
+    MODEL_CACHE_AT = time.monotonic()
+    MODEL_CACHE_SOURCE_HASH = model_config_source_hash()
+    print(json.dumps(MODEL_CACHE, ensure_ascii=False, separators=(",", ":")))
 
 def models_set_order():
     global MODEL_CACHE, MODEL_CACHE_AT, MODEL_CACHE_SOURCE_HASH
@@ -721,17 +801,47 @@ def require_https_base_url(value):
             or parsed.query or parsed.fragment):
         raise ValueError("服务商 API 地址必须使用 HTTPS，且不能包含用户名、密码、查询参数或片段")
     return value.rstrip("/")
+
+def provider_entry_with_model(provider_name, base_url, model_entry):
+    config = openclaw_config()
+    models = config.get("models", {})
+    if not isinstance(models, dict):
+        fail("OpenClaw models 配置格式无效", "bad_model_config")
+    providers = models.get("providers", {})
+    if not isinstance(providers, dict):
+        fail("OpenClaw providers 配置格式无效", "bad_model_config")
+    provider = providers.get(provider_name, {})
+    if not isinstance(provider, dict):
+        fail("OpenClaw 服务商配置格式无效", "bad_model_config")
+    entries = provider.get("models", [])
+    if not isinstance(entries, list):
+        fail("OpenClaw 服务商模型配置格式无效", "bad_model_config")
+    merged = []
+    found = False
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("id") == model_entry["id"]:
+            merged.append({**entry, **model_entry})
+            found = True
+        else:
+            merged.append(entry)
+    if not found:
+        merged.append(model_entry)
+    return {"baseUrl": base_url, "api": "openai-completions", "models": merged}
+
 def models_add():
     ref = P.get("modelRef", "").strip() if isinstance(P.get("modelRef"), str) else ""
     alias = P.get("alias", "").strip() if isinstance(P.get("alias"), str) else ""
     display = P.get("displayName", "").strip() if isinstance(P.get("displayName"), str) else ""
     base_url = P.get("baseUrl", "").strip() if isinstance(P.get("baseUrl"), str) else ""
     api_key = P.get("apiKey", "") if isinstance(P.get("apiKey"), str) else ""
+    input_mode = P.get("inputMode", "auto") if isinstance(P.get("inputMode", "auto"), str) else ""
     if not valid_model_ref(ref): fail("模型引用需要使用 provider/model 格式", "bad_model")
     provider, model_id = ref.split("/", 1)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", provider): fail("模型提供商名称无效", "bad_model")
     if alias and (len(alias) > 80 or any(ord(ch) < 32 for ch in alias)): fail("模型别名无效", "bad_model")
     if display and (len(display) > 180 or any(ord(ch) < 32 for ch in display)): fail("模型显示名无效", "bad_model")
+    if input_mode not in ("auto", "text", "image"): fail("模型输入能力无效", "bad_model")
+    if input_mode != "auto" and not base_url: fail("只有填写自定义 API 地址后才能声明模型输入能力", "bad_model")
     if base_url:
         try:
             base_url = require_https_base_url(base_url)
@@ -742,7 +852,10 @@ def models_add():
     entry = {ref: ({"alias": alias} if alias else {})}
     openclaw_command(["config", "set", "agents.defaults.models", json.dumps(entry, ensure_ascii=False, separators=(",", ":")), "--strict-json", "--merge"], timeout=90)
     if base_url:
-        provider_entry = {"baseUrl": base_url, "api": "openai-completions", "models": [{"id": model_id, "name": display or model_id}]}
+        model_entry = {"id": model_id, "name": display or model_id}
+        if input_mode != "auto":
+            model_entry["input"] = ["text", "image"] if input_mode == "image" else ["text"]
+        provider_entry = provider_entry_with_model(provider, base_url, model_entry)
         openclaw_command(["config", "set", "models.providers." + provider, json.dumps(provider_entry, ensure_ascii=False, separators=(",", ":")), "--strict-json", "--merge"], timeout=90)
     # 配置已改变，不能返回旧清单。
     print(json.dumps(models_inventory_core(force=True), ensure_ascii=False, separators=(",", ":")))
@@ -1065,6 +1178,8 @@ def handle(encoded, binary_payload=None):
             models_inventory()
         elif action == "models_set_order":
             models_set_order()
+        elif action == "models_set_image_order":
+            models_set_image_order()
         elif action == "models_add":
             models_add()
         elif action == "models_test_latency":

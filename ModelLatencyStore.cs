@@ -59,7 +59,9 @@ public sealed class ModelLatencyStore
         {
             Primary = ApplyOne(snapshot.Primary),
             Fallbacks = snapshot.Fallbacks.Select(model => ApplyOne(model)!).ToArray(),
-            Available = snapshot.Available.Select(model => ApplyOne(model)!).ToArray()
+            Available = snapshot.Available.Select(model => ApplyOne(model)!).ToArray(),
+            ImagePrimary = ApplyOne(snapshot.ImagePrimary),
+            ImageFallbacks = (snapshot.ImageFallbacks ?? Array.Empty<RemoteModelInfo>()).Select(model => ApplyOne(model)!).ToArray()
         };
     }
 

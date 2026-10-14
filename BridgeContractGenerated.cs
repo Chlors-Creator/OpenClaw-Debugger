@@ -126,6 +126,7 @@ internal static class BridgeContractGenerated
                     ["displayName"] = "string",
                     ["baseUrl"] = "string",
                     ["apiKey"] = "string",
+                    ["inputMode"] = "string",
                 }
             },
             ["getPlugins"] = new BridgeCommandDefinition

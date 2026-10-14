@@ -2,6 +2,7 @@ using Microsoft.Web.WebView2.Core;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 using System.Windows;
 
@@ -15,6 +16,8 @@ public partial class MainWindow : Window
     private BridgeCommandRouter? _commandRouter;
     private BridgeCommandContract? _bridgeContract;
     private readonly ConnectionCoordinator _connection;
+    private readonly HttpClient _clawHubHttpClient;
+    private readonly PluginCommunityService _pluginCommunity;
     private readonly RemoteTaskScheduler _taskScheduler;
     private readonly object _busySync = new();
     private UserSettings _settings = new();
@@ -25,12 +28,16 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        _clawHubHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+        var clawHubClient = new ClawHubPluginClient(_clawHubHttpClient);
+        _pluginCommunity = new PluginCommunityService(clawHubClient, new ClawHubPluginSecurityScanner(clawHubClient));
         _taskScheduler = new RemoteTaskScheduler(status =>
             _bridgeResponses.SendProgress("task", status));
         _connection = new ConnectionCoordinator(
             () => _busy,
             SetBusy,
             (command, data) => _bridgeResponses.SendProgress(command, data));
+        Closed += (_, _) => _clawHubHttpClient.Dispose();
         InitializeComponent();
     }
 
@@ -126,6 +133,7 @@ public partial class MainWindow : Window
         new StickerBridgeHandler(() => _connection.Stickers).Register(router);
         new ModelBridgeHandler(() => _connection.Models).Register(router);
         new PluginBridgeHandler(() => _connection.Plugins).Register(router);
+        new PluginCommunityBridgeHandler(_pluginCommunity).Register(router);
         new BackupBridgeHandler(() => _connection.Backup, () => _settings.Connection, OpenFolder).Register(router);
         new WindowBridgeHandler(
             () => _settings.PrivateDirectory,
