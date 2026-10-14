@@ -117,7 +117,7 @@ public sealed class PluginService
 
     private static string ValidatePackageSpec(string packageSpec)
     {
-        if (string.IsNullOrWhiteSpace(packageSpec) || packageSpec.StartsWith('-', StringComparison.Ordinal) ||
+        if (string.IsNullOrWhiteSpace(packageSpec) || packageSpec.StartsWith("-", StringComparison.Ordinal) ||
             packageSpec.Any(char.IsControl))
             throw new InvalidDataException("请输入插件包来源；来源不能以连字符开头或包含控制字符。");
         return packageSpec;
