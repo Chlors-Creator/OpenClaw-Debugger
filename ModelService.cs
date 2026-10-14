@@ -381,8 +381,10 @@ public sealed class ModelService : IDisposable
         var displayName = ReadOptional(payload, "displayName", 180);
         var baseUrl = ReadOptional(payload, "baseUrl", 500);
         var apiKey = ReadOptional(payload, "apiKey", 500);
-        if (baseUrl.Length > 0 && (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")))
-            throw new InvalidDataException("API 地址必须是 http 或 https URL。");
+        if (baseUrl.Length > 0 && (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo) ||
+            !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment)))
+            throw new InvalidDataException("API 地址必须是 HTTPS URL，且不能包含用户名、密码、查询参数或片段。");
         return new RemoteModelAddRequest(modelRef, alias, displayName, baseUrl, apiKey);
     }
 

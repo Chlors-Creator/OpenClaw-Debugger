@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="OpenClawDebugger.Tests.Program.cs" />
+    <Compile Include="ModelSecurityTests.cs" />
     <ProjectReference Include="OpenClawDebugger.csproj" />
   </ItemGroup>
 </Project>

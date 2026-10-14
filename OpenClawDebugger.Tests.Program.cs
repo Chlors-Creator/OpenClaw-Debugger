@@ -26,6 +26,7 @@ sealed class TestSuite
         await RunAsync("图片大小与尺寸安全检查", UploadSecurityAsync);
         await RunAsync("目录筛选控件", SearchFilterContractAsync);
         await RunAsync("模型拖拽自动保存", ModelAutoSaveContractAsync);
+        await RunAsync("模型 API 地址仅允许 HTTPS", ModelSecurityTests.AddModelRequiresHttpsAsync);
         Console.WriteLine($"通过 {_passed} 项，失败 {_failed} 项。" );
         if (_failed > 0) Environment.ExitCode = 1;
     }

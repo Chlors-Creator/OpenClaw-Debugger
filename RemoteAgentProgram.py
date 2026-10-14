@@ -1,4 +1,4 @@
-import base64, contextlib, hashlib, hmac, io, json, os, re, stat, subprocess, sys, tempfile, time, socket, struct, select, threading
+import base64, contextlib, hashlib, hmac, io, ipaddress, json, os, re, stat, subprocess, sys, tempfile, time, threading
 import urllib.error, urllib.parse, urllib.request
 from pathlib import PurePosixPath
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
@@ -16,7 +16,6 @@ MODEL_CACHE_AT = 0.0
 MODEL_CACHE_TTL = 30.0
 MODEL_CACHE_SCOPE = None
 MODEL_CACHE_SOURCE_HASH = None
-MODEL_GATEWAY = None
 MODEL_PROVIDER_CACHE = None
 MODEL_PROVIDER_CACHE_AT = 0.0
 MODEL_PROVIDER_CACHE_TTL = 60.0
@@ -48,161 +47,6 @@ def openclaw_config():
         except (OSError, ValueError):
             pass
     return {}
-
-def gateway_settings():
-    config = openclaw_config()
-    gateway = config.get("gateway") if isinstance(config.get("gateway"), dict) else {}
-    auth = gateway.get("auth") if isinstance(gateway.get("auth"), dict) else {}
-    try:
-        port = int(os.environ.get("OPENCLAW_GATEWAY_PORT", "") or gateway.get("port") or 18789)
-    except (TypeError, ValueError):
-        port = 18789
-    mode = str(auth.get("mode") or "token").lower()
-    if mode == "password":
-        secret = os.environ.get("OPENCLAW_GATEWAY_PASSWORD", "") or str(auth.get("password") or "")
-        return port, "password", secret
-    secret = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "") or str(auth.get("token") or "")
-    return port, "token", secret
-
-class ModelGatewayQueryProcess:
-    # 常驻 Gateway 查询会话；模型读取不再为每次请求启动 OpenClaw CLI。
-    def __init__(self):
-        self.sock = None
-        self.lock = threading.Lock()
-        self.sequence = 0
-
-    def close(self):
-        sock, self.sock = self.sock, None
-        if sock is not None:
-            try: sock.close()
-            except OSError: pass
-
-    def _read_exact(self, size):
-        chunks = []
-        remaining = size
-        while remaining:
-            chunk = self.sock.recv(remaining)
-            if not chunk: raise ConnectionError("OpenClaw Gateway 连接已关闭")
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        return b"".join(chunks)
-
-    def _send_frame(self, opcode, payload):
-        payload = payload if isinstance(payload, bytes) else bytes(payload)
-        mask = os.urandom(4)
-        masked = bytes(value ^ mask[index % 4] for index, value in enumerate(payload))
-        length = len(masked)
-        header = bytearray([0x80 | opcode])
-        if length < 126:
-            header.append(0x80 | length)
-        elif length < 65536:
-            header.append(0x80 | 126)
-            header.extend(struct.pack("!H", length))
-        else:
-            header.append(0x80 | 127)
-            header.extend(struct.pack("!Q", length))
-        self.sock.sendall(bytes(header) + mask + masked)
-
-    def _receive_frame(self):
-        first, second = self._read_exact(2)
-        opcode = first & 0x0F
-        masked = bool(second & 0x80)
-        length = second & 0x7F
-        if length == 126: length = struct.unpack("!H", self._read_exact(2))[0]
-        elif length == 127: length = struct.unpack("!Q", self._read_exact(8))[0]
-        if length > 32 * 1024 * 1024: raise ValueError("Gateway 响应超过允许大小")
-        mask = self._read_exact(4) if masked else None
-        data = self._read_exact(length)
-        if mask is not None:
-            data = bytes(value ^ mask[index % 4] for index, value in enumerate(data))
-        if opcode == 0x8: raise ConnectionError("OpenClaw Gateway 已关闭查询连接")
-        if opcode == 0x9:
-            self._send_frame(0xA, data)
-            return None
-        if opcode != 0x1: return None
-        return data.decode("utf-8")
-
-    def _send_json(self, value):
-        self._send_frame(0x1, json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-
-    def _connect(self):
-        port, auth_kind, secret = gateway_settings()
-        sock = socket.create_connection(("127.0.0.1", port), timeout=10)
-        self.sock = sock
-        key = base64.b64encode(os.urandom(16)).decode("ascii")
-        request = (
-            "GET / HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nUpgrade: websocket\r\n"
-            "Connection: Upgrade\r\nSec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n"
-        ) % (port, key)
-        sock.sendall(request.encode("ascii"))
-        response = b""
-        while b"\r\n\r\n" not in response:
-            chunk = sock.recv(4096)
-            if not chunk: raise ConnectionError("Gateway WebSocket 握手失败")
-            response += chunk
-            if len(response) > 65536: raise ConnectionError("Gateway WebSocket 握手响应过大")
-        if not response.startswith(b"HTTP/1.1 101"):
-            raise ConnectionError("OpenClaw Gateway 未接受 WebSocket 连接")
-        sock.settimeout(1.0)
-        try:
-            if select.select([sock], [], [], 0.8)[0]: self._receive_frame()
-        except socket.timeout:
-            pass
-        sock.settimeout(10.0)
-        self.sequence += 1
-        params = {
-            "minProtocol": 3,
-            "maxProtocol": 4,
-            "client": {"id": "openclaw-debugger", "displayName": "OpenClaw Debugger", "version": "1.0", "platform": "linux", "mode": "operator"},
-            "role": "operator",
-            "scopes": ["operator.read", "operator.write"],
-            "caps": [],
-        }
-        if secret: params["auth"] = {auth_kind: secret}
-        request_id = "debugger-connect-" + str(self.sequence)
-        self._send_json({"type": "req", "id": request_id, "method": "connect", "params": params})
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            message = self._receive_frame()
-            if not message: continue
-            value = json.loads(message)
-            if value.get("type") == "res" and value.get("id") == request_id:
-                if value.get("ok") is not True:
-                    raise ConnectionError("Gateway 连接认证失败")
-                return
-        raise TimeoutError("OpenClaw Gateway 握手超时")
-
-    def request(self, method, params=None):
-        with self.lock:
-            if self.sock is None: self._connect()
-            self.sequence += 1
-            request_id = "debugger-model-" + str(self.sequence)
-            self._send_json({"type": "req", "id": request_id, "method": method, "params": params or {}})
-            deadline = time.monotonic() + 30
-            try:
-                while time.monotonic() < deadline:
-                    message = self._receive_frame()
-                    if not message: continue
-                    value = json.loads(message)
-                    if value.get("type") != "res" or value.get("id") != request_id: continue
-                    if value.get("ok") is not True:
-                        error = value.get("error")
-                        raise RuntimeError("Gateway 模型查询失败" + ((": " + str(error)) if error else ""))
-                    return value.get("payload") or {}
-                raise TimeoutError("Gateway 模型查询超时")
-            except Exception:
-                self.close()
-                raise
-
-def gateway_model_list():
-    global MODEL_GATEWAY
-    if MODEL_GATEWAY is None: MODEL_GATEWAY = ModelGatewayQueryProcess()
-    try:
-        # 普通模型选择器只读取已配置/允许的模型，不能使用 view=all。
-        return MODEL_GATEWAY.request("models.list", {"view": "configured"})
-    except Exception:
-        if MODEL_GATEWAY is not None: MODEL_GATEWAY.close()
-        raise
 
 def emit_response(value, binary=None):
     if binary is None:
@@ -721,7 +565,7 @@ def model_config_hash(primary, fallbacks, available):
     payload = {
         "primary": primary,
         "fallbacks": fallbacks,
-        # 可用目录的展示顺序由不同 Gateway/CLI 版本决定，哈希只关心模型内容。
+        # CLI 版本可能改变目录展示顺序，哈希只关心模型内容。
         "available": sorted(available or [], key=lambda row: str(row.get("id", "")).casefold()) if isinstance(available, list) else available,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -732,16 +576,8 @@ def models_inventory_core(force=False):
     source_hash = model_config_source_hash()
     if not force and MODEL_CACHE is not None and MODEL_CACHE_SOURCE_HASH == source_hash and (time.monotonic() - MODEL_CACHE_AT) < MODEL_CACHE_TTL:
         return MODEL_CACHE
-    # 优先调用服务器常驻 Gateway 的 configured models.list RPC。Gateway 已经加载了
-    # OpenClaw 运行时和模型配置，避免把完整发布目录误显示为可用模型，
-    # 也避免每次查询重新启动 OpenClaw CLI。
-    # Gateway 不可用时才回退到 CLI，保证旧版/未启动 Gateway 的服务器仍能使用。
-    try:
-        catalog = gateway_model_list()
-        status = {"config": openclaw_config()}
-    except Exception:
-        status = openclaw_json(["models", "status", "--json"])
-        catalog = openclaw_json(["models", "list", "--json"])
+    status = openclaw_json(["models", "status", "--json"])
+    catalog = openclaw_json(["models", "list", "--json"])
     primary_ref = nested_model_value(status)
     fallback_refs = configured_fallbacks(status)
     catalog_values = catalog.get("models") or catalog.get("items") or catalog.get("data") or []
@@ -869,6 +705,20 @@ def models_set_order():
     MODEL_CACHE_SOURCE_HASH = model_config_source_hash()
     print(json.dumps(MODEL_CACHE, ensure_ascii=False, separators=(",", ":")))
 
+def require_https_base_url(value):
+    message = "服务商 API 地址必须是有效 HTTPS URL"
+    if not isinstance(value, str) or not value or any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in value):
+        raise ValueError(message)
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        _ = parsed.port
+    except ValueError as error:
+        raise ValueError(message) from error
+    if (parsed.scheme.lower() != "https" or not parsed.hostname
+            or parsed.username is not None or parsed.password is not None
+            or parsed.query or parsed.fragment):
+        raise ValueError("服务商 API 地址必须使用 HTTPS，且不能包含用户名、密码、查询参数或片段")
+    return value.rstrip("/")
 def models_add():
     ref = P.get("modelRef", "").strip() if isinstance(P.get("modelRef"), str) else ""
     alias = P.get("alias", "").strip() if isinstance(P.get("alias"), str) else ""
@@ -880,7 +730,11 @@ def models_add():
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", provider): fail("模型提供商名称无效", "bad_model")
     if alias and (len(alias) > 80 or any(ord(ch) < 32 for ch in alias)): fail("模型别名无效", "bad_model")
     if display and (len(display) > 180 or any(ord(ch) < 32 for ch in display)): fail("模型显示名无效", "bad_model")
-    if base_url and not re.match(r"^https?://", base_url, re.I): fail("API 地址必须是 http 或 https URL", "bad_model")
+    if base_url:
+        try:
+            base_url = require_https_base_url(base_url)
+        except ValueError as error:
+            fail(str(error), "bad_model")
     if api_key:
         openclaw_command(["models", "auth", "paste-api-key", "--provider", provider, "--profile-id", provider + ":manual"], api_key + "\n", 90)
     entry = {ref: ({"alias": alias} if alias else {})}
@@ -985,7 +839,7 @@ def model_auth_key(provider):
     return None
 
 def model_provider_config(ref):
-    # 返回可安全直接探测的 OpenAI-compatible 配置；密钥只留在远程进程内。
+    # 只为 HTTPS 服务商解析密钥，任何明文地址都会在密钥读取前失败。
     global MODEL_PROVIDER_CACHE, MODEL_PROVIDER_CACHE_AT
     now = time.monotonic()
     if MODEL_PROVIDER_CACHE is None or now - MODEL_PROVIDER_CACHE_AT >= MODEL_PROVIDER_CACHE_TTL:
@@ -1000,17 +854,17 @@ def model_provider_config(ref):
     value = MODEL_PROVIDER_CACHE.get(provider)
     if not isinstance(value, dict):
         return None
-    api = str(value.get("api") or "").lower()
     base_url = value.get("baseUrl")
-    api_key = secret_ref_value(value.get("apiKey")) or secret_ref_value(value.get("key")) or model_auth_key(provider)
+    if not base_url:
+        return None
+    base_url = require_https_base_url(base_url)
+    api = str(value.get("api") or "").lower()
     if api not in ("openai-completions", "openai-chat-completions"):
         return None
-    if not isinstance(base_url, str) or not re.match(r"^https?://", base_url, re.I):
-        return None
+    api_key = secret_ref_value(value.get("apiKey")) or secret_ref_value(value.get("key")) or model_auth_key(provider)
     if not isinstance(api_key, str) or not api_key.strip():
         return None
-    return base_url.rstrip("/") + "/chat/completions", api_key.strip(), model_id
-
+    return base_url + "/chat/completions", api_key.strip(), model_id
 def read_probe_response(response, started, measurement):
     content_type = str(response.headers.get("content-type") or "").lower()
     try:
@@ -1032,46 +886,28 @@ def read_probe_response(response, started, measurement):
         try: response.close()
         except Exception: pass
 
-def gateway_model_probe(ref):
-    # 官方模型密钥由 Gateway 的认证存储管理，不能从 models.providers 直接读取。
-    # 通过本机 OpenAI-compatible Gateway 端点探测，避免每次启动 openclaw CLI。
-    port, auth_kind, secret = gateway_settings()
-    started = time.perf_counter()
-    payload = json.dumps({
-        "model": "openclaw/default",
-        "messages": [{"role": "user", "content": "Reply with exactly: ok"}],
-        "max_tokens": 1,
-        "temperature": 0,
-        "stream": True,
-    }, separators=(",", ":")).encode("utf-8")
-    headers = {
-        "Accept": "text/event-stream",
-        "Content-Type": "application/json",
-        "User-Agent": "OpenClaw-Debugger/1.0",
-        "x-openclaw-model": ref,
-        "x-openclaw-agent-id": "main",
-    }
-    if secret:
-        headers["Authorization"] = "Bearer " + secret
-    request = urllib.request.Request(
-        "http://127.0.0.1:%d/v1/chat/completions" % port,
-        data=payload,
-        method="POST",
-        headers=headers,
-    )
+def https_origin(value):
     try:
-        response = urllib.request.urlopen(request, timeout=8)
-        return read_probe_response(response, started, "gateway_first_event")
-    except urllib.error.HTTPError as error:
-        detail = ""
-        try: detail = error.read(512).decode("utf-8", "replace")
-        except Exception: pass
-        # 未开启兼容端点时交给 direct/CLI 回退；认证和模型错误应直接展示。
-        if error.code in (401, 403, 404, 405, 501): return None
-        return {"success": False, "latencyMs": None, "error": redact_cli_error("Gateway HTTP " + str(error.code) + (": " + detail if detail else "")), "measurement": "gateway_first_event"}
-    except (urllib.error.URLError, TimeoutError, OSError):
-        # Gateway HTTP 兼容端点可能未启用，不把连接失败误报为模型失败。
+        parsed = urllib.parse.urlsplit(value)
+        port = parsed.port or 443
+    except (TypeError, ValueError):
         return None
+    if (parsed.scheme.lower() != "https" or not parsed.hostname
+            or parsed.username is not None or parsed.password is not None):
+        return None
+    try:
+        hostname = ipaddress.ip_address(parsed.hostname).compressed.casefold()
+    except ValueError:
+        hostname = parsed.hostname.casefold()
+    return hostname, port
+
+class SameOriginHttpsRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        origin = https_origin(request.full_url)
+        if origin is None or https_origin(new_url) != origin:
+            raise urllib.error.HTTPError(
+                request.full_url, code, "拒绝跨源或降级的服务商重定向", headers, response)
+        return super().redirect_request(request, response, code, message, headers, new_url)
 
 def direct_model_probe(ref):
     # 以最小流式请求测首个 SSE 事件，避免启动一次完整 OpenClaw CLI。
@@ -1099,7 +935,7 @@ def direct_model_probe(ref):
         },
     )
     try:
-        response = urllib.request.urlopen(request, timeout=8)
+        response = urllib.request.build_opener(SameOriginHttpsRedirectHandler()).open(request, timeout=8)
         return read_probe_response(response, started, "first_event")
     except urllib.error.HTTPError as error:
         detail = ""
@@ -1120,17 +956,13 @@ def models_test_latency():
     def probe(ref):
         started = time.perf_counter()
         try:
-            gateway = gateway_model_probe(ref)
-            if gateway is not None:
-                gateway["modelId"] = ref
-                gateway["testedAtUtc"] = tested
-                return gateway
+
             direct = direct_model_probe(ref)
             if direct is not None:
                 direct["modelId"] = ref
                 direct["testedAtUtc"] = tested
                 return direct
-            # Keep HTTP probes at up to ten workers, but limit expensive CLI
+            # Keep provider probes at up to ten workers, but limit expensive CLI
             # fallbacks to three processes on small servers.
             with CLI_PROBE_LIMITER:
                 completed = subprocess.run(

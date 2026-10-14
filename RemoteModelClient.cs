@@ -46,7 +46,7 @@ public interface IRemoteModelClient
     Task<IReadOnlyList<RemoteModelLatencyResult>> TestLatencyAsync(ConnectionSettings settings, IReadOnlyList<string> modelIds, CancellationToken cancellationToken = default);
 }
 
-/// <summary>模型领域客户端。模型读取优先使用服务器常驻 Gateway 查询会话，写入仍由服务器端 OpenClaw 配置命令负责。</summary>
+/// <summary>模型领域客户端；读取、写入和探测均由服务器侧 OpenClaw 代理处理。</summary>
 public sealed class RemoteModelClient : IRemoteModelClient
 {
     private readonly RemoteOpenClawClient _remote;
