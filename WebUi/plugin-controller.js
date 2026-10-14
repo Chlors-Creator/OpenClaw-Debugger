@@ -31,7 +31,7 @@
       storeInstalled(controller, response);
       return !state.listFormatError;
     } catch (error) {
-      reportOperationError(controller, error, '读取插件清单失败：', '#pluginStatus');
+      reportOperationError(controller, error, { prefix: '读取插件清单失败：', target: '#pluginStatus' });
       return false;
     } finally {
       finishLoad(controller, generation);
@@ -60,20 +60,20 @@
     syncButtons(controller);
   }
 
-  function reportOperationError(controller, error, prefix, target) {
+  function reportOperationError(controller, error, options) {
     if (error && error.name === 'AbortError') return;
-    controller.$(target).textContent = prefix + String(error && error.message || error);
+    controller.$(options.target).textContent = options.prefix + String(error && error.message || error);
     controller.reportError(error);
   }
 
-  function askConfirmation(controller, title, prompt, target, consentLabel) {
+  function askConfirmation(controller, options) {
     const $ = controller.$;
-    $('#pluginActionTitle').textContent = title;
-    $('#pluginActionPrompt').textContent = prompt;
-    $('#pluginActionTarget').textContent = target;
-    $('#pluginConsentLabel').textContent = consentLabel || '';
+    $('#pluginActionTitle').textContent = options.title;
+    $('#pluginActionPrompt').textContent = options.prompt;
+    $('#pluginActionTarget').textContent = options.target;
+    $('#pluginConsentLabel').textContent = options.consentLabel || '';
     $('#pluginConsentCheck').checked = false;
-    $('#pluginConsentRow').hidden = !consentLabel;
+    $('#pluginConsentRow').hidden = !options.consentLabel;
     $('#pluginActionDialog').showModal();
     return new Promise(resolve => $('#pluginActionDialog').addEventListener('close', () => {
       resolve($('#pluginActionDialog').returnValue === 'confirm' ? $('#pluginConsentCheck').checked : null);
@@ -91,36 +91,42 @@
   }
 
   async function enable(controller, id) {
-    const accepted = await askConfirmation(controller, '启用插件', '启用会让 OpenClaw 加载插件并注册其声明的功能。', id,
-      '我接受插件声明的 capability；只有勾选后才会发送 OpenClaw 的能力授权参数。');
+    const accepted = await askConfirmation(controller, {
+      title: '启用插件', prompt: '启用会让 OpenClaw 加载插件并注册其声明的功能。', target: id,
+      consentLabel: '我接受插件声明的 capability；只有勾选后才会发送 OpenClaw 的能力授权参数。'
+    });
     if (accepted === null) return;
-    await mutate(controller, 'setPluginEnabled', { pluginId: id, enabled: true, acceptCapabilities: accepted }, '已启用插件：' + id);
+    await mutate(controller, { command: 'setPluginEnabled', payload: { pluginId: id, enabled: true, acceptCapabilities: accepted }, message: '已启用插件：' + id });
   }
 
   async function disable(controller, id) {
-    const confirmed = await askConfirmation(controller, '停用插件', '停用会修改服务器上的插件配置。', id, null);
+    const confirmed = await askConfirmation(controller, { title: '停用插件', prompt: '停用会修改服务器上的插件配置。', target: id });
     if (confirmed === null) return;
-    await mutate(controller, 'setPluginEnabled', { pluginId: id, enabled: false, acceptCapabilities: false }, '已停用插件：' + id);
+    await mutate(controller, { command: 'setPluginEnabled', payload: { pluginId: id, enabled: false, acceptCapabilities: false }, message: '已停用插件：' + id });
   }
 
   async function reload(controller, id) {
-    const accepted = await askConfirmation(controller, '重载插件', '重载可能让 Gateway 立即重新加载此插件。', id,
-      '我接受该插件声明的新 capability；只有勾选后才会发送授权参数。');
+    const accepted = await askConfirmation(controller, {
+      title: '重载插件', prompt: '重载可能让 Gateway 立即重新加载此插件。', target: id,
+      consentLabel: '我接受该插件声明的新 capability；只有勾选后才会发送授权参数。'
+    });
     if (accepted === null) return;
-    await mutate(controller, 'reloadPlugin', { pluginId: id, acceptCapabilities: accepted }, '已请求重载插件：' + id);
+    await mutate(controller, { command: 'reloadPlugin', payload: { pluginId: id, acceptCapabilities: accepted }, message: '已请求重载插件：' + id });
   }
 
   async function update(controller, id) {
-    const accepted = await askConfirmation(controller, '更新插件', '更新会替换服务器上的插件代码；OpenClaw 要求先停止 Gateway。', id,
-      '我接受更新版本声明的新 capability；只有勾选后才会发送授权参数。');
+    const accepted = await askConfirmation(controller, {
+      title: '更新插件', prompt: '更新会替换服务器上的插件代码；OpenClaw 要求先停止 Gateway。', target: id,
+      consentLabel: '我接受更新版本声明的新 capability；只有勾选后才会发送授权参数。'
+    });
     if (accepted === null) return;
-    await mutate(controller, 'updatePlugin', { pluginId: id, acceptCapabilities: accepted }, '已更新插件：' + id);
+    await mutate(controller, { command: 'updatePlugin', payload: { pluginId: id, acceptCapabilities: accepted }, message: '已更新插件：' + id });
   }
 
   async function uninstall(controller, id) {
-    const confirmed = await askConfirmation(controller, '卸载插件', '此操作会从服务器移除插件安装记录和受管理的文件。', id, null);
+    const confirmed = await askConfirmation(controller, { title: '卸载插件', prompt: '此操作会从服务器移除插件安装记录和受管理的文件。', target: id });
     if (confirmed === null) return;
-    await mutate(controller, 'uninstallPlugin', { pluginId: id }, '已卸载插件：' + id);
+    await mutate(controller, { command: 'uninstallPlugin', payload: { pluginId: id }, message: '已卸载插件：' + id });
   }
 
   function actionMap(controller) {
@@ -133,12 +139,12 @@
 
   function handleAction(controller, action, id) {
     const handler = actionMap(controller)[action];
-    if (handler && id) handler(id).catch(error => reportOperationError(controller, error, '插件操作失败：', '#pluginStatus'));
+    if (handler && id) handler(id).catch(error => reportOperationError(controller, error, { prefix: '插件操作失败：', target: '#pluginStatus' }));
   }
 
   async function installFromInputSafely(controller) {
     try { await installFromInput(controller); }
-    catch (error) { reportOperationError(controller, error, '插件操作失败：', '#pluginStatus'); }
+    catch (error) { reportOperationError(controller, error, { prefix: '插件操作失败：', target: '#pluginStatus' }); }
   }
 
   async function installFromInput(controller) {
@@ -148,29 +154,32 @@
 
   async function installSpecSafely(controller, packageSpec) {
     try { await requestInstall(controller, packageSpec); }
-    catch (error) { reportOperationError(controller, error, '插件安装失败：', '#pluginStatus'); }
+    catch (error) { reportOperationError(controller, error, { prefix: '插件安装失败：', target: '#pluginStatus' }); }
   }
 
   async function requestInstall(controller, packageSpec) {
     if (!packageSpec || !canInstall(controller)) return;
-    const accepted = await askConfirmation(controller, '安装插件（保持禁用）',
-      '将从 ClawHub 下载插件并部署到服务器。本次默认使用 --no-enable，安装后仍需检查详情并单独启用。', packageSpec,
-      '我信任此来源，并接受该插件声明的 capability；只有勾选后才会发送授权参数。');
+    const accepted = await askConfirmation(controller, {
+      title: '安装插件（保持禁用）',
+      prompt: '将从 ClawHub 下载插件并部署到服务器。本次默认使用 --no-enable，安装后仍需检查详情并单独启用。',
+      target: packageSpec,
+      consentLabel: '我信任此来源，并接受该插件声明的 capability；只有勾选后才会发送授权参数。'
+    });
     if (accepted === null) return;
-    await mutate(controller, 'installPlugin', { packageSpec, acceptCapabilities: accepted }, '已安装插件并保持禁用：' + packageSpec);
+    await mutate(controller, { command: 'installPlugin', payload: { packageSpec, acceptCapabilities: accepted }, message: '已安装插件并保持禁用：' + packageSpec });
   }
 
-  async function mutate(controller, command, payload, message) {
+  async function mutate(controller, options) {
     const refreshed = await runBusy(controller, async () => {
-      await controller.bridgeCall(command, payload);
+      await controller.bridgeCall(options.command, options.payload);
       return await load(controller, true);
     });
     if (refreshed) {
-      controller.setStatus(message);
-      controller.showToast(message);
+      controller.setStatus(options.message);
+      controller.showToast(options.message);
       return;
     }
-    controller.setStatus(message + '；但清单刷新失败，请查看错误并手动刷新。', true);
+    controller.setStatus(options.message + '；但清单刷新失败，请查看错误并手动刷新。', true);
   }
 
   async function runBusy(controller, operation) {

@@ -712,6 +712,32 @@ def snapshot_with_order(base, primary_ref, fallback_refs):
                 "retrievedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     snapshot["configHash"] = model_config_hash(primary, fallbacks, available, image_primary, image_fallbacks)
     return snapshot
+
+def snapshot_with_image_order(base, primary_ref, fallback_refs):
+    rows = [base.get("primary")] + list(base.get("fallbacks") or []) + list(base.get("imageFallbacks") or [])
+    rows += [base.get("imagePrimary")] + list(base.get("available") or [])
+    by_id = {model_key(row.get("id", "")): row for row in rows if isinstance(row, dict) and model_key(row.get("id", ""))}
+    image_primary = by_id.get(model_key(primary_ref)) if primary_ref else None
+    if primary_ref and image_primary is None:
+        image_primary = model_row(primary_ref)
+    image_fallbacks = []
+    for ref in fallback_refs:
+        row = by_id.get(model_key(ref)) or model_row(ref)
+        if row:
+            image_fallbacks.append(row)
+    main_selected = {model_key(row.get("id", "")) for row in [base.get("primary")] + list(base.get("fallbacks") or []) if isinstance(row, dict)}
+    available = list(base.get("available") or [])
+    available_keys = {model_key(row.get("id", "")) for row in available if isinstance(row, dict)}
+    for row in ([image_primary] if image_primary else []) + image_fallbacks:
+        key = model_key(row.get("id", ""))
+        if key and key not in main_selected and key not in available_keys:
+            available.append(row)
+            available_keys.add(key)
+    snapshot = {**base, "available": available, "imagePrimary": image_primary, "imageFallbacks": image_fallbacks}
+    snapshot["retrievedAtUtc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    snapshot["configHash"] = model_config_hash(base.get("primary"), base.get("fallbacks"), available, image_primary, image_fallbacks)
+    return snapshot
+
 def apply_model_order(primary, fallbacks):
     subprocess.run(["openclaw", "models", "set", primary], check=True, capture_output=True, text=True, timeout=90)
     subprocess.run(["openclaw", "models", "fallbacks", "clear"], check=True, capture_output=True, text=True, timeout=90)
@@ -748,9 +774,9 @@ def models_set_image_order():
             if valid_model_ref(old_primary):
                 subprocess.run(["openclaw", "models", "set-image", old_primary], check=True, capture_output=True, text=True, timeout=90)
         except Exception as rollback_error:
-            fail("图像识别模型保存失败，且恢复备选项失败：" + redact_cli_error(rollback_error), "image_model_rollback_failed")
+            fail("图像识别模型保存失败，且恢复旧图像配置失败：" + redact_cli_error(rollback_error), "image_model_rollback_failed")
         fail("图像识别模型保存失败，已恢复旧备选项：" + redact_cli_error(error), "image_model_order_failed")
-    MODEL_CACHE = models_inventory_core(force=True)
+    MODEL_CACHE = snapshot_with_image_order(before, primary, fallbacks)
     MODEL_CACHE_AT = time.monotonic()
     MODEL_CACHE_SOURCE_HASH = model_config_source_hash()
     print(json.dumps(MODEL_CACHE, ensure_ascii=False, separators=(",", ":")))

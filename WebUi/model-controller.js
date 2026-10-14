@@ -1,7 +1,6 @@
 (function () {
   'use strict';
 
-
   function create(deps) {
     const { $, bridgeCall, state, setStatus, showToast, reportError, setBusy, isConnected } = deps;
 

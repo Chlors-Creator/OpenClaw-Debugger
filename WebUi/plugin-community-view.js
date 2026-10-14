@@ -75,24 +75,26 @@
     return element;
   }
 
-  function actionButton(label, action, index, disabled) {
+  function actionButton(options) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'button button-quiet';
-    button.dataset.communityAction = action;
-    button.dataset.communityIndex = String(index);
-    button.textContent = label;
-    button.disabled = disabled;
+    button.dataset.communityAction = options.action;
+    button.dataset.communityIndex = String(options.index);
+    button.textContent = options.label;
+    button.disabled = options.disabled;
     return button;
   }
 
-  function appendActions(controller, card, item, index) {
+  function appendActions(controller, options) {
     const actions = document.createElement('div');
     actions.className = 'plugin-community-actions';
-    actions.appendChild(actionButton('详情', 'detail', index, false));
-    actions.appendChild(actionButton('安全报告', 'security', index, controller.state.securityLoading));
-    actions.appendChild(actionButton('下载并部署', 'install', index, !controller.canInstall()));
-    card.appendChild(actions);
+    actions.appendChild(actionButton({ label: '详情', action: 'detail', index: options.index, disabled: false }));
+    const item = controller.state.items[options.index];
+    const missingSecurityVersion = !packageName(item) || !version(item);
+    actions.appendChild(actionButton({ label: '安全报告', action: 'security', index: options.index, disabled: controller.state.securityLoading || missingSecurityVersion }));
+    actions.appendChild(actionButton({ label: '下载并部署', action: 'install', index: options.index, disabled: !controller.canInstall() }));
+    options.card.appendChild(actions);
   }
 
   function renderCard(controller, item, index) {
@@ -109,7 +111,7 @@
     card.appendChild(textElement('small', 'plugin-meta', metaLine(item)));
     card.appendChild(textElement('p', 'plugin-description', description(item) || 'ClawHub 暂未提供插件简介。'));
     card.appendChild(textElement('div', 'plugin-community-metrics', '★ ' + count(item, ['statsStars', 'stats.stars', 'stars']) + '　↓ ' + count(item, ['statsDownloads', 'stats.downloads', 'downloads'])));
-    appendActions(controller, card, item, index);
+    appendActions(controller, { card, index });
     return card;
   }
 
@@ -125,6 +127,9 @@
 
   function renderResults(controller) {
     const container = controller.$('#pluginSearchResults');
+    const more = controller.$('#pluginCommunityLoadMoreButton');
+    more.hidden = !controller.state.nextCursor || Boolean(controller.state.query);
+    more.disabled = controller.state.loading || !controller.state.nextCursor;
     container.replaceChildren();
     const items = controller.state.items;
     controller.$('#pluginCommunityCount').textContent = String(items.length);
@@ -144,9 +149,6 @@
     } else {
       items.forEach((item, index) => container.appendChild(renderCard(controller, item, index)));
     }
-    const more = controller.$('#pluginCommunityLoadMoreButton');
-    more.hidden = !controller.state.nextCursor || Boolean(controller.state.query);
-    more.disabled = controller.state.loading || !controller.state.nextCursor;
   }
 
   function metadataRows(item) {

@@ -202,7 +202,8 @@
       button.disabled = busy || !controller.canInstall();
     });
     controller.$$('#pluginSearchResults [data-community-action="security"]').forEach(button => {
-      button.disabled = state.securityLoading;
+      const item = state.items[Number(button.dataset.communityIndex)];
+      button.disabled = state.securityLoading || !controller.view.packageName(item) || !controller.view.version(item);
     });
     const selected = state.selectedItem;
     controller.$('#pluginCommunityDetailInstallButton').disabled = busy || !selected ||

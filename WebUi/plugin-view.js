@@ -35,14 +35,14 @@
     return element;
   }
 
-  function actionButton(label, action, id, disabled) {
+  function actionButton(options) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'button button-quiet plugin-action-button';
-    button.dataset.pluginAction = action;
-    button.dataset.pluginId = id;
-    button.textContent = label;
-    button.disabled = disabled;
+    button.dataset.pluginAction = options.action;
+    button.dataset.pluginId = options.id;
+    button.textContent = options.label;
+    button.disabled = options.disabled;
     return button;
   }
 
@@ -58,11 +58,11 @@
     actions.className = 'plugin-card-actions';
     if (!id) return actions;
     const isEnabled = enabled(plugin);
-    actions.appendChild(actionButton('详情', 'inspect', id, busy));
-    actions.appendChild(actionButton(isEnabled ? '停用' : '启用', isEnabled ? 'disable' : 'enable', id, busy));
-    actions.appendChild(actionButton('重载', 'reload', id, busy));
-    actions.appendChild(actionButton('更新', 'update', id, busy));
-    actions.appendChild(actionButton('卸载', 'uninstall', id, busy));
+    actions.appendChild(actionButton({ label: '详情', action: 'inspect', id, disabled: busy }));
+    actions.appendChild(actionButton({ label: isEnabled ? '停用' : '启用', action: isEnabled ? 'disable' : 'enable', id, disabled: busy }));
+    actions.appendChild(actionButton({ label: '重载', action: 'reload', id, disabled: busy }));
+    actions.appendChild(actionButton({ label: '更新', action: 'update', id, disabled: busy }));
+    actions.appendChild(actionButton({ label: '卸载', action: 'uninstall', id, disabled: busy }));
     return actions;
   }
 

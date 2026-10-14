@@ -17,21 +17,22 @@ public sealed class PluginCommunityService(IClawHubPluginClient catalog, IPlugin
         var sort = OptionalString(payload, "sort") ?? "recommended";
         if (!SortModes.Contains(sort)) throw new InvalidDataException("插件社区排序方式无效。");
         var cursor = OptionalString(payload, "cursor");
-        return catalog.BrowseAsync(sort, cursor, OptionalBoolean(payload, "forceRefresh"), cancellationToken);
+        return catalog.BrowseAsync(new ClawHubBrowseRequest(sort, cursor, OptionalBoolean(payload, "forceRefresh")), cancellationToken);
     }
 
     public Task<JsonNode> SearchAsync(JsonElement payload, CancellationToken cancellationToken)
     {
         var query = RequiredString(payload, "query").Trim();
         if (query.Length == 0) throw new InvalidDataException("请输入插件搜索词。");
-        return catalog.SearchAsync(query, OptionalBoolean(payload, "forceRefresh"), cancellationToken);
+        return catalog.SearchAsync(new ClawHubSearchRequest(query, OptionalBoolean(payload, "forceRefresh")), cancellationToken);
     }
 
     public Task<JsonNode> CheckSecurityAsync(JsonElement payload, CancellationToken cancellationToken)
     {
         var packageName = ValidatePackageName(RequiredString(payload, "packageName"));
         var version = ValidateVersion(RequiredString(payload, "version"));
-        return securityScanner.CheckAsync(packageName, version, OptionalBoolean(payload, "forceRefresh"), cancellationToken);
+        var request = new PluginSecurityCheck(packageName, version, OptionalBoolean(payload, "forceRefresh"));
+        return securityScanner.CheckAsync(request, cancellationToken);
     }
 
     private static string RequiredString(JsonElement payload, string name)
