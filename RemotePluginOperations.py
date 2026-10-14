@@ -101,9 +101,27 @@ def plugins_update():
 
 def plugins_uninstall():
     plugin_id = require_plugin_id(P.get("pluginId"))
-    return plugin_mutation_command(["uninstall", plugin_id], timeout=PLUGIN_LIFECYCLE_TIMEOUT_SECONDS)
+    return plugin_mutation_command(["uninstall", plugin_id, "--force"], timeout=PLUGIN_LIFECYCLE_TIMEOUT_SECONDS)
 
 def plugins_install():
     package_spec = require_plugin_spec(P.get("packageSpec"))
     accepted = P.get("acceptCapabilities") is True
     return plugin_mutation_command(["install", package_spec, "--no-enable"], accepted)
+
+PLUGIN_OPERATIONS = {
+    "plugins_inventory": plugins_inventory,
+    "plugins_search": plugins_search,
+    "plugins_inspect": plugins_inspect,
+    "plugins_enable": plugins_enable,
+    "plugins_disable": plugins_disable,
+    "plugins_reload": plugins_reload,
+    "plugins_update": plugins_update,
+    "plugins_uninstall": plugins_uninstall,
+    "plugins_install": plugins_install,
+}
+
+def handle_plugin_action(action):
+    operation = PLUGIN_OPERATIONS.get(action)
+    if operation is None:
+        raise ValueError("不支持的插件操作")
+    print(json.dumps(operation(), ensure_ascii=False, separators=(",", ":")))

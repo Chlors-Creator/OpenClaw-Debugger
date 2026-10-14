@@ -154,7 +154,7 @@
   }
 
   async function update(controller, id) {
-    const accepted = await askConfirmation(controller, '更新插件', '更新会替换服务器上的插件代码。', id,
+    const accepted = await askConfirmation(controller, '更新插件', '更新会替换服务器上的插件代码；OpenClaw 要求先停止 Gateway。', id,
       '我接受更新版本声明的新 capability；只有勾选后才会发送授权参数。');
     if (accepted === null) return;
     await mutate(controller, 'updatePlugin', { pluginId: id, acceptCapabilities: accepted }, '已更新插件：' + id);
