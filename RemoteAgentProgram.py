@@ -728,7 +728,7 @@ def models_set_image_order():
     primary_value = P.get("primary", "")
     primary = primary_value.strip() if isinstance(primary_value, str) else ""
     fallbacks = P.get("fallbacks", [])
-    if (primary and not valid_model_ref(primary)) or not isinstance(fallbacks, list) or len(fallbacks) > 20:
+    if (primary and not valid_model_ref(primary)) or not isinstance(fallbacks, list):
         fail("图像识别模型顺序参数无效", "bad_image_model_order")
     fallbacks = [item.strip() if isinstance(item, str) else "" for item in fallbacks]
     fallback_keys = [model_key(item) for item in fallbacks]

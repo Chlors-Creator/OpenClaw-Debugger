@@ -55,6 +55,7 @@
     state.requestController = operation;
     state.loading = true;
     state.catalogFormatError = false;
+    state.catalogError = '';
     if (!options.append) {
       state.items = [];
       state.nextCursor = '';
@@ -95,10 +96,13 @@
     const items = controller.view.records(response);
     state.catalogRaw = controller.view.resultValue(response);
     state.catalogFormatError = items === null;
+    state.catalogError = '';
     if (items === null) {
+      state.loaded = true;
       controller.$('#pluginSearchStatus').textContent = 'ClawHub 返回的插件列表格式无法识别。';
       return;
     }
+    state.loaded = true;
     state.items = append ? state.items.concat(items) : items;
     state.nextCursor = controller.view.nextCursor(response);
     const label = state.query ? '搜索到 ' : '已加载 ';
@@ -108,6 +112,7 @@
 
   function showCatalogError(controller, error) {
     if (error && error.name === 'AbortError') return;
+    controller.state.catalogError = String(error && error.message || error);
     controller.$('#pluginSearchStatus').textContent = 'ClawHub 目录请求失败：' + String(error && error.message || error);
     controller.reportError(error);
   }
@@ -133,6 +138,11 @@
   }
 
   function openDetails(controller, item) {
+    const state = controller.state;
+    state.securityController?.abort();
+    state.securityGeneration += 1;
+    state.securityController = null;
+    state.securityLoading = false;
     controller.state.selectedItem = item;
     controller.view.renderDetails(controller, item);
     controller.$('#pluginCommunityDetailDialog').showModal();
@@ -194,6 +204,11 @@
     controller.$$('#pluginSearchResults [data-community-action="security"]').forEach(button => {
       button.disabled = state.securityLoading;
     });
+    const selected = state.selectedItem;
+    controller.$('#pluginCommunityDetailInstallButton').disabled = busy || !selected ||
+      !controller.canInstall() || !controller.installSpec(selected);
+    controller.$('#pluginCommunitySecurityButton').disabled = state.securityLoading || !selected ||
+      !controller.view.packageName(selected) || !controller.view.version(selected);
   }
 
   window.OpenClawPluginCommunityController = { create };

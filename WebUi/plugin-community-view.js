@@ -128,6 +128,11 @@
     container.replaceChildren();
     const items = controller.state.items;
     controller.$('#pluginCommunityCount').textContent = String(items.length);
+    if (controller.state.catalogError) {
+      container.replaceChildren(textElement('p', 'plugin-format-error', 'ClawHub 目录请求失败：' + controller.state.catalogError));
+      container.classList.remove('empty-state');
+      return;
+    }
     container.classList.toggle('empty-state', items.length === 0 && !controller.state.catalogFormatError);
     if (controller.state.catalogFormatError) {
       container.replaceChildren(textElement('p', 'plugin-format-error', 'ClawHub 返回的 JSON 中没有可识别的插件列表。原始结果：'));

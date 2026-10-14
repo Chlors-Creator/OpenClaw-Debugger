@@ -1,7 +1,6 @@
 (function () {
   'use strict';
 
-  const MAX_IMAGE_FALLBACKS = 20;
 
   function create(deps) {
     const { $, bridgeCall, state, setStatus, showToast, reportError, setBusy, isConnected } = deps;
@@ -224,8 +223,8 @@
         new Option(`${safeText(model.provider, '—')} · ${safeText(model.name, model.id)} · ${imageInputLabel(model)}`, model.id)));
       const locked = imageControlsLocked();
       primarySelect.disabled = locked;
-      fallbackSelect.disabled = locked || fallbackCandidates.length === 0 || imageFallbackIds(snapshot).length >= MAX_IMAGE_FALLBACKS;
-      $('#addImageModelFallbackButton').disabled = locked || !fallbackSelect.value || imageFallbackIds(snapshot).length >= MAX_IMAGE_FALLBACKS;
+      fallbackSelect.disabled = locked || fallbackCandidates.length === 0;
+      $('#addImageModelFallbackButton').disabled = locked || !fallbackSelect.value;
     }
 
     function createImageFallbackRow(model, index, total) {
@@ -497,8 +496,8 @@
       testButton.title = state.testing ? '取消当前模型延迟测试' : '一次性测试当前、备选和全部可用模型，最多 10 个并发';
       $('#addModelButton').disabled = !connected || state.loading || state.refreshing || state.testing || state.saving || state.adding;
       $('#imageModelPrimarySelect').disabled = imageLocked;
-      $('#imageModelFallbackSelect').disabled = imageLocked || $('#imageModelFallbackSelect').options.length <= 1 || imageFallbackIds(state.snapshot).length >= MAX_IMAGE_FALLBACKS;
-      $('#addImageModelFallbackButton').disabled = imageLocked || !$('#imageModelFallbackSelect').value || imageFallbackIds(state.snapshot).length >= MAX_IMAGE_FALLBACKS;
+      $('#imageModelFallbackSelect').disabled = imageLocked || $('#imageModelFallbackSelect').options.length <= 1;
+      $('#addImageModelFallbackButton').disabled = imageLocked || !$('#imageModelFallbackSelect').value;
       $('#imageModelFallbackList').querySelectorAll('.model-image-action').forEach(button => { button.disabled = imageLocked || button.dataset.boundary === 'true'; });
       document.body.classList.toggle('model-operation-active', state.refreshing || state.testing || state.saving || state.adding);
       if (state.loading) {
@@ -740,7 +739,7 @@
       const primaryKey = String(primaryId || '').toLowerCase();
       const models = fallbackIds.map(id => byId.get(String(id).toLowerCase()));
       const keys = fallbackIds.map(id => String(id).toLowerCase());
-      if ((primaryKey && !byId.has(primaryKey)) || models.some(model => !model) || keys.length > MAX_IMAGE_FALLBACKS ||
+      if ((primaryKey && !byId.has(primaryKey)) || models.some(model => !model) ||
           new Set(keys).size !== keys.length || (primaryKey && keys.includes(primaryKey))) {
         showToast('图像识别模型链包含无效或重复模型。', true);
         renderImageRoute(source);

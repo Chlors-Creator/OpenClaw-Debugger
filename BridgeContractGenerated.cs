@@ -114,6 +114,17 @@ internal static class BridgeContractGenerated
                     ["fallbacks"] = "array",
                 }
             },
+            ["setImageModelOrder"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "model",
+                TimeoutMs = 300000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["primary"] = "string",
+                    ["fallbacks"] = "array",
+                }
+            },
             ["addModel"] = new BridgeCommandDefinition
             {
                 Mode = "remote",
@@ -146,6 +157,41 @@ internal static class BridgeContractGenerated
                 Payload = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["query"] = "string",
+                }
+            },
+            ["browsePluginCommunity"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "pluginCommunity",
+                TimeoutMs = 60000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["sort"] = "string",
+                    ["cursor"] = "string",
+                    ["forceRefresh"] = "boolean",
+                }
+            },
+            ["searchPluginCommunity"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "pluginCommunity",
+                TimeoutMs = 60000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["query"] = "string",
+                    ["forceRefresh"] = "boolean",
+                }
+            },
+            ["checkPluginCommunitySecurity"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "pluginCommunity",
+                TimeoutMs = 60000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["packageName"] = "string",
+                    ["version"] = "string",
+                    ["forceRefresh"] = "boolean",
                 }
             },
             ["inspectPlugin"] = new BridgeCommandDefinition

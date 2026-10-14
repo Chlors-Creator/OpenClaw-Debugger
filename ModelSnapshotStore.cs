@@ -17,7 +17,7 @@ internal sealed record ModelSnapshotCacheEntry(
 /// </summary>
 internal sealed class ModelSnapshotStore
 {
-    private const int CacheFormatVersion = 1;
+    private const int CacheFormatVersion = 2;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

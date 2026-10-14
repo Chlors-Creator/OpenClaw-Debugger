@@ -85,6 +85,15 @@
         "fallbacks": "array"
       }
     },
+    "setImageModelOrder": {
+      "mode": "remote",
+      "domain": "model",
+      "timeoutMs": 300000,
+      "payload": {
+        "primary": "string",
+        "fallbacks": "array"
+      }
+    },
     "addModel": {
       "mode": "remote",
       "domain": "model",
@@ -110,6 +119,35 @@
       "timeoutMs": 180000,
       "payload": {
         "query": "string"
+      }
+    },
+    "browsePluginCommunity": {
+      "mode": "local",
+      "domain": "pluginCommunity",
+      "timeoutMs": 60000,
+      "payload": {
+        "sort": "string",
+        "cursor": "string",
+        "forceRefresh": "boolean"
+      }
+    },
+    "searchPluginCommunity": {
+      "mode": "local",
+      "domain": "pluginCommunity",
+      "timeoutMs": 60000,
+      "payload": {
+        "query": "string",
+        "forceRefresh": "boolean"
+      }
+    },
+    "checkPluginCommunitySecurity": {
+      "mode": "local",
+      "domain": "pluginCommunity",
+      "timeoutMs": 60000,
+      "payload": {
+        "packageName": "string",
+        "version": "string",
+        "forceRefresh": "boolean"
       }
     },
     "inspectPlugin": {

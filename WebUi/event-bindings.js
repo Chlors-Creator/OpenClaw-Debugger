@@ -8,7 +8,7 @@
       testModelLatency, openAddModelDialog, submitAddModel,
       resetThemePalette, uploadFiles, cancelUpload, openRenameDialog, submitStickerRename,
       loadStickerThumbnail, hasDraggedFiles, getDroppedFiles, saveRawEditor,
-      setBackdropValue, resetBackdrop, showToast, persistTheme, pluginController
+      setBackdropValue, resetBackdrop, showToast, persistTheme, pluginController, pluginCommunityController
     } = deps;
     function wireEvents() {
 
@@ -40,7 +40,9 @@
     $('#modelAddCloseButton').addEventListener('click', () => $('#modelAddDialog').close());
     $('#modelAddForm').addEventListener('submit', event => { event.preventDefault(); submitAddModel(); });
     $('#pluginRefreshButton').addEventListener('click', () => pluginController.load(true));
-    $('#pluginSearchForm').addEventListener('submit', event => { event.preventDefault(); pluginController.search(); });
+    $('#pluginSearchForm').addEventListener('submit', event => { event.preventDefault(); pluginCommunityController.search(); });
+    $('#pluginCommunityRefreshButton').addEventListener('click', pluginCommunityController.refresh);
+    $('#pluginCommunityLoadMoreButton').addEventListener('click', pluginCommunityController.loadMore);
     $('#pluginFilter').addEventListener('input', pluginController.renderInstalled);
     $('#pluginInstallButton').addEventListener('click', pluginController.installFromInput);
     $('#pluginList').addEventListener('click', event => {
@@ -48,8 +50,15 @@
       if (button) pluginController.handleAction(button.dataset.pluginAction, button.dataset.pluginId);
     });
     $('#pluginSearchResults').addEventListener('click', event => {
-      const button = event.target.closest('[data-plugin-spec]');
-      if (button) pluginController.setInstallSpec(button.dataset.pluginSpec);
+      const button = event.target.closest('[data-community-action]');
+      if (button) pluginCommunityController.handleAction(button.dataset.communityAction, Number(button.dataset.communityIndex));
+    });
+    $('#pluginCommunitySecurityButton').addEventListener('click', () => {
+      if (appState.pluginCommunity.selectedItem) pluginCommunityController.checkSecurity(appState.pluginCommunity.selectedItem);
+    });
+    $('#pluginCommunityDetailInstallButton').addEventListener('click', () => {
+      const item = appState.pluginCommunity.selectedItem;
+      if (item) pluginController.installSpec(pluginCommunityController.installSpec(item));
     });
     $('#pluginActionForm').addEventListener('submit', event => {
       event.preventDefault(); $('#pluginActionDialog').close('confirm');
@@ -140,7 +149,8 @@
       appState.model.imageOrderController?.abort();
       appState.model.addController?.abort();
       appState.plugin.loadController?.abort();
-      appState.plugin.searchController?.abort();
+      appState.pluginCommunity.requestController?.abort();
+      appState.pluginCommunity.securityController?.abort();
       appState.backup.controller?.abort();
       appState.bridge?.cancelAll();
       if (appState.dirtyMemory || appState.dirtyStickers || appState.dirtyRaw) { event.preventDefault(); event.returnValue = ''; }

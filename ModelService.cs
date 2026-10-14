@@ -389,7 +389,6 @@ public sealed class ModelService : IDisposable
             if (item.ValueKind != JsonValueKind.String) throw new InvalidDataException("图像识别备选模型必须是字符串。");
             return ValidateModelRef(item.GetString() ?? "");
         }).ToList();
-        if (fallbacks.Count > 20) throw new InvalidDataException("图像识别模型最多只能设置 20 个备选模型。");
         if (primary.Length > 0 && fallbacks.Contains(primary, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("图像识别主模型不能同时出现在备选列表中。");
         if (fallbacks.Distinct(StringComparer.OrdinalIgnoreCase).Count() != fallbacks.Count)

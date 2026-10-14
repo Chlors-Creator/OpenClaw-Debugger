@@ -12,6 +12,7 @@
         nextCursor: '',
         catalogRaw: null,
         catalogFormatError: false,
+        catalogError: '',
         query: '',
         sort: 'recommended',
         selectedItem: null,

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="styles-overrides.css">
   <link rel="stylesheet" href="plugins.css">
+  <link rel="stylesheet" href="plugin-community.css">
   <script src="bridge-contract.generated.js" defer></script>
   <script src="bridge.js" defer></script>
   <script src="theme.js" defer></script>
@@ -16,6 +17,7 @@
   <script src="memory-state.js" defer></script>
   <script src="model-state.js" defer></script>
   <script src="plugin-state.js" defer></script>
+  <script src="plugin-community-state.js" defer></script>
   <script src="sticker-state.js" defer></script>
   <script src="backup-state.js" defer></script>
   <script src="settings-state.js" defer></script>
@@ -24,7 +26,9 @@
   <script src="memory-controller.js" defer></script>
   <script src="model-controller.js" defer></script>
   <script src="plugin-view.js" defer></script>
+  <script src="plugin-community-view.js" defer></script>
   <script src="plugin-controller.js" defer></script>
+  <script src="plugin-community-controller.js" defer></script>
   <script src="sticker-controller.js" defer></script>
   <script src="upload-controller.js" defer></script>
   <script src="backup-controller.js" defer></script>
@@ -117,7 +121,7 @@
 
       <section class="page page-plugins" id="page-plugins">
         <div class="section-heading">
-          <div><div class="eyebrow">PLUGIN MANAGEMENT</div><h2>插件管理</h2><p>查看远端插件清单、搜索 ClawHub，并管理启用、更新与移除。</p></div>
+          <div><div class="eyebrow">PLUGIN MANAGEMENT</div><h2>插件管理</h2><p>浏览 ClawHub 官方插件社区，查看介绍、元数据、星标与下载量，并管理服务器上的插件。</p></div>
           <div class="button-row"><span class="plugin-count-badge"><strong id="pluginCount">0</strong> 个插件</span><button class="button button-primary" id="pluginRefreshButton" type="button" disabled>⟳ 刷新清单</button></div>
         </div>
         <div class="plugin-safety-note panel glass"><span class="plugin-safety-icon">!</span><p><strong>第三方插件会在服务器上运行代码。</strong>检查来源和详情中的能力声明后再启用；安装默认保持禁用，能力授权需单独勾选。</p></div>
@@ -128,10 +132,11 @@
             <div class="plugin-list empty-state" id="pluginList">连接服务器后读取插件清单</div>
           </article>
           <article class="panel glass plugin-discovery-panel">
-            <div class="panel-heading"><div><div class="eyebrow">CLAWHUB SEARCH</div><h3>查找插件</h3></div></div>
+            <div class="panel-heading"><div><div class="eyebrow">OFFICIAL COMMUNITY · CLAWHUB</div><h3>插件社区</h3></div><div class="plugin-community-toolbar"><span class="plugin-community-count"><b id="pluginCommunityCount">0</b> 个结果</span><select id="pluginCommunitySort" class="filter-select" aria-label="插件排序"><option value="recommended">推荐</option><option value="downloads">下载量</option><option value="updated">最近更新</option></select><button class="button button-quiet" id="pluginCommunityRefreshButton" type="button">⟳ 刷新</button></div></div>
             <form id="pluginSearchForm" class="plugin-search-form"><label class="search-box"><span>⌕</span><input id="pluginSearchInput" type="search" placeholder="搜索 ClawHub 插件" aria-label="搜索 ClawHub 插件"></label><button class="button button-quiet" id="pluginSearchButton" type="submit" disabled>搜索</button></form>
-            <div class="plugin-search-status muted small" id="pluginSearchStatus">输入关键词后搜索 ClawHub。</div>
-            <div class="plugin-search-results" id="pluginSearchResults"><div class="empty-state">搜索结果会显示在这里</div></div>
+            <div class="plugin-search-status muted small" id="pluginSearchStatus">正在读取 ClawHub 插件目录…</div>
+            <div class="plugin-search-results" id="pluginSearchResults"><div class="empty-state">插件社区结果会显示在这里</div></div>
+            <button class="button button-quiet plugin-community-more" id="pluginCommunityLoadMoreButton" type="button" hidden>加载更多</button>
             <div class="plugin-install-row"><label>安装包来源<input id="pluginPackageInput" type="text" placeholder="ClawHub、npm、Git、服务器本地路径或归档" autocomplete="off" spellcheck="false"></label><button class="button button-primary" id="pluginInstallButton" type="button" disabled>安装（保持禁用）</button></div>
           </article>
         </div>
@@ -188,6 +193,10 @@
 
       <dialog class="modal plugin-detail-dialog" id="pluginDetailDialog">
         <form method="dialog"><div class="modal-head"><div><div class="eyebrow">PLUGIN INSPECTION</div><h3 id="pluginDetailTitle">插件详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted">OpenClaw 的静态检查结果；默认不会导入插件运行时代码。</p><pre id="pluginDetailBody" class="plugin-json"></pre><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-community-detail-dialog" id="pluginCommunityDetailDialog">
+        <form method="dialog"><div class="modal-head"><div><div class="eyebrow">CLAWHUB PLUGIN</div><h3 id="pluginCommunityDetailTitle">插件详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted" id="pluginCommunityDetailIntroduction"></p><div class="plugin-community-metadata" id="pluginCommunityDetailMetadata"></div><pre class="plugin-community-readme" id="pluginCommunityDetailReadme" hidden></pre><section class="plugin-community-security"><div class="panel-heading"><div><div class="eyebrow">SECURITY REPORT</div><h4>安全报告</h4></div><button class="button button-quiet" id="pluginCommunitySecurityButton" type="button">读取 ClawHub 报告</button></div><p class="muted small" id="pluginCommunitySecurityStatus">尚未读取此版本的 ClawHub 安全报告。</p><pre class="plugin-json" id="pluginCommunitySecurityBody"></pre></section><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button><button class="button button-primary" id="pluginCommunityDetailInstallButton" type="button" disabled>下载并部署</button></div></form>
       </dialog>
 
       <dialog class="modal plugin-action-dialog" id="pluginActionDialog">

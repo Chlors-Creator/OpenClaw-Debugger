@@ -44,6 +44,7 @@
 
   function syncPluginButtons() {
     appState.pluginController?.syncButtons();
+    appState.pluginCommunityController?.syncButtons();
   }
 
   function isConnected() {
@@ -207,8 +208,10 @@
     if (activeButton) nav.style.setProperty('--active-x', activeButton.offsetLeft + 'px');
     if (name === 'models' && $('.connection-chip').classList.contains('connected') &&
         !appState.model.snapshot && !appState.model.loading) appState.modelController?.load();
-    if (name === 'plugins' && isConnected() && !appState.plugin.loaded && !appState.plugin.loading)
-      appState.pluginController?.load();
+    if (name === 'plugins') {
+      if (isConnected() && !appState.plugin.loaded && !appState.plugin.loading) appState.pluginController?.load();
+      if (!appState.pluginCommunity.loaded && !appState.pluginCommunity.loading) appState.pluginCommunityController?.browse();
+    }
   }
 
   function setDirtyState() {
@@ -327,6 +330,7 @@
       renderMemoryList(); renderStickerList(); setDirtyState();
       loadModels();
       if (appState.currentTab === 'plugins') appState.pluginController?.load(true);
+      if (appState.currentTab === 'plugins' && !appState.pluginCommunity.loaded) appState.pluginCommunityController?.browse();
       setStatus('SSH 连接成功，已读取 ' + result.memoryCount + ' 个记忆文档和 ' + result.stickerCount + ' 张图片。');
       showToast('服务器连接成功。');
     } catch (error) {
@@ -479,6 +483,10 @@
       $, $$, bridgeCall, state: appState.plugin, setStatus, showToast, reportError,
       isConnected, connectionState: appState.connection
     });
+    appState.pluginCommunityController = window.OpenClawPluginCommunityController.create({
+      $, $$, bridgeCall, state: appState.pluginCommunity, reportError,
+      connectionState: appState.connection, pluginController: appState.pluginController
+    });
     appState.stickerController = window.OpenClawStickerController.create({
       $, state: appState.sticker, sizeLabel, setDirtyState, setStatus, showToast, reportError, review,
       bridgeCall, setBusy, syncRenameButton, loadStickerImage, loadStickerThumbnail,
@@ -498,7 +506,7 @@
     appState.eventBindings = window.OpenClawEventBindings.create({
       $, $$, appState, switchTab, connectServer, toggleConnection, syncConnectionButton, toggleBackupPause, cancelBackup,
       saveConnectionSettings, bridgeCall, reportError, setStatus, setDirtyState, saveMemory,
-      pluginController: appState.pluginController,
+      pluginController: appState.pluginController, pluginCommunityController: appState.pluginCommunityController,
       renderMemoryList, renderStickerList, saveStickerRows, openRawEditor,
       testModelLatency, openAddModelDialog, submitAddModel,
       resetThemePalette, uploadFiles, cancelUpload, openRenameDialog, submitStickerRename,
