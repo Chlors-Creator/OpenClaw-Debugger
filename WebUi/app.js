@@ -104,6 +104,7 @@
     syncModelButtons();
     syncPluginButtons();
     appState.skillController?.syncButtons();
+    appState.skillCommunityController?.syncButtons();
     syncConnectionButton();
   }
 
@@ -218,6 +219,8 @@
     }
     if (name === 'skills' && isConnected() && !appState.skill.loaded && !appState.skill.loading)
       appState.skillController?.load();
+    if (name === 'skills' && !appState.skillCommunity.loaded && !appState.skillCommunity.loading)
+      appState.skillCommunityController?.browse();
   }
 
   function setDirtyState() {
@@ -339,6 +342,7 @@
       if (appState.currentTab === 'plugins') appState.pluginController?.load(true);
       if (appState.currentTab === 'plugins' && !appState.pluginCommunity.loaded) appState.pluginCommunityController?.browse();
       if (appState.currentTab === 'skills') appState.skillController?.load(true);
+      if (appState.currentTab === 'skills' && !appState.skillCommunity.loaded) appState.skillCommunityController?.browse();
       setStatus('SSH 连接成功，已读取 ' + result.memoryCount + ' 个记忆文档和 ' + result.stickerCount + ' 张图片。');
       showToast('服务器连接成功。');
     } catch (error) {
@@ -494,6 +498,10 @@
     appState.skillController = window.OpenClawSkillController.create({
       $, $$, bridgeCall, state: appState.skill, reportError, showToast,
       isConnected, connectionState: appState.connection
+    });
+    appState.skillCommunityController = window.OpenClawSkillCommunityController.create({
+      $, $$, bridgeCall, state: appState.skillCommunity, reportError, showToast,
+      isConnected, connectionState: appState.connection, skillController: appState.skillController
     });
     appState.pluginCommunityController = window.OpenClawPluginCommunityController.create({
       $, $$, bridgeCall, state: appState.pluginCommunity, reportError,

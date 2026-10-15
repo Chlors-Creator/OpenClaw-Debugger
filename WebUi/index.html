@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="plugin-categories.css">
   <link rel="stylesheet" href="dependencies.css">
   <link rel="stylesheet" href="skills.css">
+  <link rel="stylesheet" href="skill-community.css">
   <link rel="stylesheet" href="firewall.css">
   <script src="bridge-contract.generated.js" defer></script>
   <script src="bridge.js" defer></script>
@@ -22,6 +23,7 @@
   <script src="model-state.js" defer></script>
   <script src="plugin-state.js" defer></script>
   <script src="skill-state.js" defer></script>
+  <script src="skill-community-state.js" defer></script>
   <script src="plugin-community-state.js" defer></script>
   <script src="sticker-state.js" defer></script>
   <script src="backup-state.js" defer></script>
@@ -36,6 +38,8 @@
   <script src="dependency-controller.js" defer></script>
   <script src="skill-view.js" defer></script>
   <script src="skill-controller.js" defer></script>
+  <script src="skill-community-view.js" defer></script>
+  <script src="skill-community-controller.js" defer></script>
   <script src="plugin-community-view.js" defer></script>
   <script src="plugin-controller.js" defer></script>
   <script src="plugin-community-controller.js" defer></script>
@@ -163,15 +167,24 @@
 
       <section class="page page-skills" id="page-skills">
         <div class="section-heading">
-          <div><div class="eyebrow">SKILL MANAGEMENT</div><h2>技能管理</h2><p>读取服务器当前技能，查看 OpenClaw 详情，并远程更新 ClawHub 跟踪的技能。</p></div>
+          <div><div class="eyebrow">SKILL MANAGEMENT</div><h2>技能管理</h2><p>浏览 ClawHub 技能社区，查看发布与安全信息，并安装到服务器管理。</p></div>
           <div class="button-row"><span class="plugin-count-badge"><strong id="skillCount">0</strong> 项技能</span><button class="button button-primary" id="skillRefreshButton" type="button" disabled>⟳ 刷新清单</button></div>
         </div>
-        <article class="panel glass skill-panel">
-          <div class="side-title"><strong>当前技能</strong><span id="skillVisibleCount">0</span></div>
-          <label class="search-box"><span>⌕</span><input id="skillFilter" type="search" placeholder="筛选名称、来源、版本或状态" aria-label="筛选当前技能"></label>
-          <div class="plugin-page-status" id="skillStatus" role="status" aria-live="polite">连接服务器后读取当前技能。</div>
-          <div class="plugin-list skill-list empty-state" id="skillList">连接服务器后读取技能清单</div>
-        </article>
+        <div class="skill-management-grid">
+          <article class="panel glass skill-panel">
+            <div class="side-title"><strong>当前技能</strong><span id="skillVisibleCount">0</span></div>
+            <label class="search-box"><span>⌕</span><input id="skillFilter" type="search" placeholder="筛选名称、来源、版本或状态" aria-label="筛选当前技能"></label>
+            <div class="plugin-page-status" id="skillStatus" role="status" aria-live="polite">连接服务器后读取当前技能。</div>
+            <div class="plugin-list skill-list empty-state" id="skillList">连接服务器后读取技能清单</div>
+          </article>
+          <article class="panel glass skill-community-panel">
+            <div class="panel-heading"><div><div class="eyebrow">OFFICIAL COMMUNITY · CLAWHUB</div><h3>技能社区</h3></div><div class="skill-community-toolbar"><span class="skill-community-count"><b id="skillCommunityCount">0</b> 个结果</span><select id="skillCommunitySort" class="filter-select" aria-label="技能排序"><option value="recommended">推荐</option><option value="downloads">下载量</option><option value="updated">最近更新</option><option value="createdAt">最新发布</option><option value="stars">星标</option><option value="trending">趋势</option></select><button class="button button-quiet" id="skillCommunityRefreshButton" type="button">⟳ 刷新</button></div></div>
+            <form id="skillCommunitySearchForm" class="skill-community-search-form"><label class="search-box"><span>⌕</span><input id="skillCommunitySearchInput" type="search" placeholder="搜索 ClawHub 技能" aria-label="搜索 ClawHub 技能"></label><button class="button button-quiet" id="skillCommunitySearchButton" type="submit" disabled>搜索</button></form>
+            <div class="skill-community-search-status" id="skillCommunitySearchStatus" role="status" aria-live="polite">正在读取 ClawHub 技能目录…</div>
+            <div class="skill-community-results" id="skillCommunityResults"><div class="empty-state">技能社区结果会显示在这里</div></div>
+            <button class="button button-quiet plugin-community-more" id="skillCommunityLoadMoreButton" type="button" hidden>加载更多</button>
+          </article>
+        </div>
       </section>
 
       <section class="page page-dependencies" id="page-dependencies">
@@ -267,6 +280,14 @@
 
       <dialog class="modal plugin-action-dialog skill-update-dialog" id="skillUpdateDialog">
         <form id="skillUpdateForm"><div class="modal-head"><div><div class="eyebrow">CONFIRM SKILL UPDATE</div><h3>远程更新技能</h3></div><button class="icon-button" id="skillUpdateCloseButton" type="button" aria-label="关闭">×</button></div><p class="muted">将运行 OpenClaw 的技能更新命令。只有由 ClawHub 跟踪的技能可更新；不会使用强制覆盖参数。</p><div class="skill-update-target" id="skillUpdateTarget"></div><div class="modal-actions"><button class="button button-quiet" id="skillUpdateCancelButton" type="button">取消</button><button class="button button-primary" type="submit">确认更新</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-community-detail-dialog skill-community-detail-dialog" id="skillCommunityDetailDialog">
+        <form method="dialog"><div class="modal-head"><div><div class="eyebrow">CLAWHUB SKILL</div><h3 id="skillCommunityDetailTitle">技能详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted" id="skillCommunityDetailIntroduction"></p><div class="plugin-community-metadata" id="skillCommunityDetailMetadata"></div><div class="skill-community-detail-stats" id="skillCommunityDetailStats"></div><p class="plugin-page-status" id="skillCommunityDetailStatus" role="status" aria-live="polite"></p><details><summary>ClawHub 原始详情</summary><pre class="plugin-json skill-community-detail-body" id="skillCommunityDetailBody"></pre></details><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button><button class="button button-primary" id="skillCommunityDetailInstallButton" type="button" disabled>安装到服务器</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-action-dialog skill-community-install-dialog" id="skillCommunityInstallDialog">
+        <form id="skillCommunityInstallForm"><div class="modal-head"><div><div class="eyebrow">CONFIRM SKILL INSTALL</div><h3>安装 ClawHub 技能</h3></div><button class="icon-button" id="skillCommunityInstallCloseButton" type="button" aria-label="关闭">×</button></div><p class="muted">将在服务器上运行 <code>openclaw skills install</code>，并把技能加入当前 OpenClaw 工作区。</p><div class="skill-community-warning">技能包由社区发布。安装前请检查发布者、版本与 ClawHub 安全状态；安装后技能说明会参与 OpenClaw 的行为。</div><div class="skill-update-target" id="skillCommunityInstallTarget"></div><div class="modal-actions"><button class="button button-quiet" id="skillCommunityInstallCancelButton" type="button">取消</button><button class="button button-primary" type="submit">确认安装</button></div></form>
       </dialog>
 
       <dialog class="modal plugin-community-detail-dialog" id="pluginCommunityDetailDialog">

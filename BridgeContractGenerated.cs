@@ -201,6 +201,16 @@ internal static class BridgeContractGenerated
                     ["skillName"] = "string",
                 }
             },
+            ["installCommunitySkill"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "skill",
+                TimeoutMs = 1080000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["skillName"] = "string",
+                }
+            },
             ["searchPlugins"] = new BridgeCommandDefinition
             {
                 Mode = "remote",
@@ -243,6 +253,40 @@ internal static class BridgeContractGenerated
                 {
                     ["packageName"] = "string",
                     ["version"] = "string",
+                    ["forceRefresh"] = "boolean",
+                }
+            },
+            ["browseSkillCommunity"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "skillCommunity",
+                TimeoutMs = 60000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["sort"] = "string",
+                    ["cursor"] = "string",
+                    ["forceRefresh"] = "boolean",
+                }
+            },
+            ["searchSkillCommunity"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "skillCommunity",
+                TimeoutMs = 60000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["query"] = "string",
+                    ["forceRefresh"] = "boolean",
+                }
+            },
+            ["getSkillCommunityDetails"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "skillCommunity",
+                TimeoutMs = 60000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["slug"] = "string",
                     ["forceRefresh"] = "boolean",
                 }
             },

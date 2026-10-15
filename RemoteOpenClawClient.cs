@@ -50,7 +50,7 @@ public sealed partial class RemoteOpenClawClient : IDisposable
             settings,
             request,
             cancellationToken,
-            string.Equals(request["action"]?.GetValue<string>(), "skills_update", StringComparison.Ordinal)
+            request["action"]?.GetValue<string>() is "skills_update" or "skills_install"
                 ? TimeSpan.FromMinutes(16)
                 : null);
 

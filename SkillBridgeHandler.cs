@@ -10,6 +10,7 @@ public sealed class SkillBridgeHandler(Func<SkillService?> service)
         router.Map("getSkills", async (_, token) => await Require().GetAsync(token));
         router.Map("inspectSkill", async (payload, token) => await Require().InspectAsync(payload, token));
         router.Map("updateSkill", async (payload, token) => await Require().UpdateAsync(payload, token));
+        router.Map("installCommunitySkill", async (payload, token) => await Require().InstallCommunityAsync(payload, token));
     }
 
     private SkillService Require() => service() ?? throw new InvalidOperationException("技能服务未初始化。");

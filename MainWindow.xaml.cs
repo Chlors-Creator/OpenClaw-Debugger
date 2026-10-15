@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly IAliyunAccessKeyVault _aliyunAccessKeyVault;
     private readonly SshWhitelistSyncService _sshWhitelistSync;
     private readonly PluginCommunityService _pluginCommunity;
+    private readonly SkillCommunityService _skillCommunity;
     private readonly RemoteTaskScheduler _taskScheduler;
     private readonly object _busySync = new();
     private UserSettings _settings = new();
@@ -41,6 +42,7 @@ public partial class MainWindow : Window
             new PublicEgressIpProvider(_egressIpHttpClient), new SwasFirewallApiFactory());
         var clawHubClient = new ClawHubPluginClient(_clawHubHttpClient);
         _pluginCommunity = new PluginCommunityService(clawHubClient, new ClawHubPluginSecurityScanner(clawHubClient));
+        _skillCommunity = new SkillCommunityService(new ClawHubSkillClient(_clawHubHttpClient));
         _taskScheduler = new RemoteTaskScheduler(status =>
             _bridgeResponses.SendProgress("task", status));
         _connection = new ConnectionCoordinator(
@@ -150,6 +152,7 @@ public partial class MainWindow : Window
         new ModelBridgeHandler(() => _connection.Models).Register(router);
         new PluginBridgeHandler(() => _connection.Plugins).Register(router);
         new SkillBridgeHandler(() => _connection.Skills).Register(router);
+        new SkillCommunityBridgeHandler(_skillCommunity).Register(router);
         new PluginCommunityBridgeHandler(_pluginCommunity).Register(router);
         new BackupBridgeHandler(() => _connection.Backup, () => _settings.Connection, OpenFolder).Register(router);
         new WindowBridgeHandler(

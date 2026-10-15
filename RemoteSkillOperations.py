@@ -1,5 +1,6 @@
 SKILL_QUERY_TIMEOUT_SECONDS = 90
 SKILL_UPDATE_TIMEOUT_SECONDS = 900
+SKILL_INSTALL_TIMEOUT_SECONDS = 900
 
 def require_skill_name(value):
     if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9@][A-Za-z0-9@._/-]*", value):
@@ -45,10 +46,15 @@ def skills_update():
     name = require_skill_name(P.get("skillName"))
     return skill_command(["update", name], SKILL_UPDATE_TIMEOUT_SECONDS, False)
 
+def skills_install():
+    name = require_skill_name(P.get("skillName"))
+    return skill_command(["install", name], SKILL_INSTALL_TIMEOUT_SECONDS, False)
+
 SKILL_OPERATIONS = {
     "skills_inventory": skills_inventory,
     "skills_info": skills_info,
     "skills_update": skills_update,
+    "skills_install": skills_install,
 }
 
 def handle_skill_action(action):

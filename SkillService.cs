@@ -21,6 +21,9 @@ public sealed class SkillService(SkillServiceDependencies dependencies)
     public Task<object> UpdateAsync(JsonElement payload, CancellationToken cancellationToken = default) =>
         ExecuteAsync(new RemoteSkillRequest("skills_update", SkillName(payload)), cancellationToken);
 
+    public Task<object> InstallCommunityAsync(JsonElement payload, CancellationToken cancellationToken = default) =>
+        ExecuteAsync(new RemoteSkillRequest("skills_install", SkillName(payload)), cancellationToken);
+
     private async Task<object> ExecuteAsync(RemoteSkillRequest request, CancellationToken cancellationToken)
     {
         if (!dependencies.IsConnected()) throw new InvalidOperationException("请先连接服务器，再管理技能。");

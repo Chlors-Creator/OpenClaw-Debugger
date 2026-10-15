@@ -167,6 +167,14 @@
                                                          "skillName":  "string"
                                                      }
                                      },
+                     "installCommunitySkill":  {
+                                                   "mode":  "remote",
+                                                   "domain":  "skill",
+                                                   "timeoutMs":  1080000,
+                                                   "payload":  {
+                                                                   "skillName":  "string"
+                                                               }
+                                               },
                      "searchPlugins":  {
                                            "mode":  "remote",
                                            "domain":  "plugin",
@@ -204,6 +212,34 @@
                                                                           "forceRefresh":  "boolean"
                                                                       }
                                                       },
+                     "browseSkillCommunity":  {
+                                                  "mode":  "local",
+                                                  "domain":  "skillCommunity",
+                                                  "timeoutMs":  60000,
+                                                  "payload":  {
+                                                                  "sort":  "string",
+                                                                  "cursor":  "string",
+                                                                  "forceRefresh":  "boolean"
+                                                              }
+                                              },
+                     "searchSkillCommunity":  {
+                                                  "mode":  "local",
+                                                  "domain":  "skillCommunity",
+                                                  "timeoutMs":  60000,
+                                                  "payload":  {
+                                                                  "query":  "string",
+                                                                  "forceRefresh":  "boolean"
+                                                              }
+                                              },
+                     "getSkillCommunityDetails":  {
+                                                      "mode":  "local",
+                                                      "domain":  "skillCommunity",
+                                                      "timeoutMs":  60000,
+                                                      "payload":  {
+                                                                      "slug":  "string",
+                                                                      "forceRefresh":  "boolean"
+                                                                  }
+                                                  },
                      "inspectPlugin":  {
                                            "mode":  "remote",
                                            "domain":  "plugin",
