@@ -3,381 +3,407 @@
 (function () {
   'use strict';
   window.OpenClawBridgeContract = Object.freeze({
-  "protocolVersion": 2,
-  "commands": {
-    "initialize": {
-      "mode": "local",
-      "domain": "local",
-      "timeoutMs": 15000,
-      "payload": {}
-    },
-    "saveSettings": {
-      "mode": "local",
-      "domain": "settings",
-      "timeoutMs": 30000,
-      "payload": {
-        "host": "string",
-        "username": "string",
-        "port": "integer",
-        "workspacePath": "string",
-        "stickersPath": "string",
-        "backupRetentionCount": "integer"
-      }
-    },
-    "setTheme": {
-      "mode": "local",
-      "domain": "settings",
-      "timeoutMs": 15000,
-      "payload": {
-        "theme": "string"
-      }
-    },
-    "connect": {
-      "mode": "remote",
-      "domain": "connection",
-      "timeoutMs": 60000,
-      "payload": {}
-    },
-    "disconnect": {
-      "mode": "control",
-      "domain": "connection",
-      "timeoutMs": 30000,
-      "payload": {}
-    },
-    "readMemory": {
-      "mode": "remote",
-      "domain": "read",
-      "timeoutMs": 180000,
-      "payload": {
-        "path": "string"
-      }
-    },
-    "saveMemory": {
-      "mode": "remote",
-      "domain": "edit",
-      "timeoutMs": 300000,
-      "payload": {
-        "path": "string",
-        "expectedSha256": "string",
-        "text": "string"
-      }
-    },
-    "getModels": {
-      "mode": "remote",
-      "domain": "model",
-      "timeoutMs": 180000,
-      "payload": {}
-    },
-    "testModelLatency": {
-      "mode": "remote",
-      "domain": "model",
-      "timeoutMs": 1800000,
-      "payload": {
-        "models": "array"
-      }
-    },
-    "setModelOrder": {
-      "mode": "remote",
-      "domain": "model",
-      "timeoutMs": 300000,
-      "payload": {
-        "primary": "string",
-        "fallbacks": "array"
-      }
-    },
-    "setImageModelOrder": {
-      "mode": "remote",
-      "domain": "model",
-      "timeoutMs": 300000,
-      "payload": {
-        "primary": "string",
-        "fallbacks": "array"
-      }
-    },
-    "addModel": {
-      "mode": "remote",
-      "domain": "model",
-      "timeoutMs": 300000,
-      "payload": {
-        "modelRef": "string",
-        "alias": "string",
-        "displayName": "string",
-        "baseUrl": "string",
-        "apiKey": "string",
-        "inputMode": "string"
-      }
-    },
-    "getPlugins": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 180000,
-      "payload": {}
-    },
-    "getSkills": {
-      "mode": "remote",
-      "domain": "skill",
-      "timeoutMs": 180000,
-      "payload": {}
-    },
-    "inspectSkill": {
-      "mode": "remote",
-      "domain": "skill",
-      "timeoutMs": 180000,
-      "payload": {
-        "skillName": "string"
-      }
-    },
-    "updateSkill": {
-      "mode": "remote",
-      "domain": "skill",
-      "timeoutMs": 1080000,
-      "payload": {
-        "skillName": "string"
-      }
-    },
-    "searchPlugins": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 180000,
-      "payload": {
-        "query": "string"
-      }
-    },
-    "browsePluginCommunity": {
-      "mode": "local",
-      "domain": "pluginCommunity",
-      "timeoutMs": 60000,
-      "payload": {
-        "sort": "string",
-        "cursor": "string",
-        "forceRefresh": "boolean"
-      }
-    },
-    "searchPluginCommunity": {
-      "mode": "local",
-      "domain": "pluginCommunity",
-      "timeoutMs": 60000,
-      "payload": {
-        "query": "string",
-        "forceRefresh": "boolean"
-      }
-    },
-    "checkPluginCommunitySecurity": {
-      "mode": "local",
-      "domain": "pluginCommunity",
-      "timeoutMs": 60000,
-      "payload": {
-        "packageName": "string",
-        "version": "string",
-        "forceRefresh": "boolean"
-      }
-    },
-    "inspectPlugin": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 180000,
-      "payload": {
-        "pluginId": "string"
-      }
-    },
-    "setPluginEnabled": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 300000,
-      "payload": {
-        "pluginId": "string",
-        "enabled": "boolean",
-        "acceptCapabilities": "boolean"
-      }
-    },
-    "reloadPlugin": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 300000,
-      "payload": {
-        "pluginId": "string",
-        "acceptCapabilities": "boolean"
-      }
-    },
-    "updatePlugin": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 1080000,
-      "payload": {
-        "pluginId": "string",
-        "acceptCapabilities": "boolean"
-      }
-    },
-    "uninstallPlugin": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 1080000,
-      "payload": {
-        "pluginId": "string"
-      }
-    },
-    "installPlugin": {
-      "mode": "remote",
-      "domain": "plugin",
-      "timeoutMs": 1080000,
-      "payload": {
-        "packageSpec": "string",
-        "acceptCapabilities": "boolean"
-      }
-    },
-    "readSticker": {
-      "mode": "remote",
-      "domain": "read",
-      "timeoutMs": 180000,
-      "payload": {
-        "path": "string"
-      }
-    },
-    "readStickerThumbnail": {
-      "mode": "remote",
-      "domain": "thumbnail",
-      "timeoutMs": 180000,
-      "payload": {
-        "path": "string"
-      }
-    },
-    "previewStickerRows": {
-      "mode": "local",
-      "domain": "edit",
-      "timeoutMs": 30000,
-      "payload": {
-        "rows": "array"
-      }
-    },
-    "saveStickerRows": {
-      "mode": "remote",
-      "domain": "edit",
-      "timeoutMs": 300000,
-      "payload": {
-        "rows": "array"
-      }
-    },
-    "saveStickerRaw": {
-      "mode": "remote",
-      "domain": "edit",
-      "timeoutMs": 300000,
-      "payload": {
-        "catalog": "string",
-        "manifest": "string"
-      }
-    },
-    "beginStickerUpload": {
-      "mode": "uploadStart",
-      "domain": "edit",
-      "timeoutMs": 30000,
-      "payload": {
-        "fileName": "string",
-        "size": "integer"
-      }
-    },
-    "appendStickerUpload": {
-      "mode": "uploadChunk",
-      "domain": "upload",
-      "timeoutMs": 60000,
-      "payload": {
-        "uploadId": "string",
-        "offset": "integer",
-        "contentBase64": "string",
-        "sha256": "string"
-      }
-    },
-    "commitStickerUpload": {
-      "mode": "uploadFinalize",
-      "domain": "edit",
-      "timeoutMs": 1800000,
-      "payload": {
-        "uploadId": "string"
-      }
-    },
-    "streamStickerUpload": {
-      "mode": "upload",
-      "domain": "upload",
-      "timeoutMs": 1800000,
-      "payload": {
-        "fileName": "string",
-        "size": "integer"
-      }
-    },
-    "cancelStickerUpload": {
-      "mode": "uploadCancel",
-      "domain": "control",
-      "timeoutMs": 15000,
-      "payload": {
-        "uploadId": "string"
-      }
-    },
-    "renameSticker": {
-      "mode": "remote",
-      "domain": "edit",
-      "timeoutMs": 300000,
-      "payload": {
-        "oldFileName": "string",
-        "newFileName": "string"
-      }
-    },
-    "backup": {
-      "mode": "remote",
-      "domain": "backup",
-      "timeoutMs": 7200000,
-      "payload": {}
-    },
-    "toggleBackupPause": {
-      "mode": "control",
-      "domain": "control",
-      "timeoutMs": 15000,
-      "payload": {}
-    },
-    "cancelBackup": {
-      "mode": "control",
-      "domain": "control",
-      "timeoutMs": 15000,
-      "payload": {}
-    },
-    "openPrivateFolder": {
-      "mode": "local",
-      "domain": "local",
-      "timeoutMs": 15000,
-      "payload": {}
-    },
-    "openBackupFolder": {
-      "mode": "local",
-      "domain": "local",
-      "timeoutMs": 15000,
-      "payload": {}
-    },
-    "exportLogs": {
-      "mode": "local",
-      "domain": "local",
-      "timeoutMs": 60000,
-      "payload": {}
-    },
-    "draftState": {
-      "mode": "local",
-      "domain": "local",
-      "timeoutMs": 15000,
-      "payload": {
-        "dirty": "boolean"
-      }
-    },
-    "close": {
-      "mode": "control",
-      "domain": "control",
-      "timeoutMs": 15000,
-      "payload": {}
-    },
-    "cancelOperation": {
-      "mode": "control",
-      "domain": "control",
-      "timeoutMs": 15000,
-      "payload": {
-        "operationId": "string"
-      }
-    }
-  }
+    "protocolVersion":  2,
+    "commands":  {
+                     "initialize":  {
+                                        "mode":  "local",
+                                        "domain":  "local",
+                                        "timeoutMs":  15000,
+                                        "payload":  {
+
+                                                    }
+                                    },
+                     "saveSettings":  {
+                                          "mode":  "local",
+                                          "domain":  "settings",
+                                          "timeoutMs":  30000,
+                                          "payload":  {
+                                                          "host":  "string",
+                                                          "username":  "string",
+                                                          "port":  "integer",
+                                                          "workspacePath":  "string",
+                                                          "stickersPath":  "string",
+                                                          "backupRetentionCount":  "integer"
+                                                      }
+                                      },
+                     "setTheme":  {
+                                      "mode":  "local",
+                                      "domain":  "settings",
+                                      "timeoutMs":  15000,
+                                      "payload":  {
+                                                      "theme":  "string"
+                                                  }
+                                  },
+                     "connect":  {
+                                     "mode":  "remote",
+                                     "domain":  "connection",
+                                     "timeoutMs":  60000,
+                                     "payload":  {
+
+                                                 }
+                                 },
+                     "disconnect":  {
+                                        "mode":  "control",
+                                        "domain":  "connection",
+                                        "timeoutMs":  30000,
+                                        "payload":  {
+
+                                                    }
+                                    },
+                     "readMemory":  {
+                                        "mode":  "remote",
+                                        "domain":  "read",
+                                        "timeoutMs":  180000,
+                                        "payload":  {
+                                                        "path":  "string"
+                                                    }
+                                    },
+                     "saveMemory":  {
+                                        "mode":  "remote",
+                                        "domain":  "edit",
+                                        "timeoutMs":  300000,
+                                        "payload":  {
+                                                        "path":  "string",
+                                                        "expectedSha256":  "string",
+                                                        "text":  "string"
+                                                    }
+                                    },
+                     "getModels":  {
+                                       "mode":  "remote",
+                                       "domain":  "model",
+                                       "timeoutMs":  180000,
+                                       "payload":  {
+
+                                                   }
+                                   },
+                     "testModelLatency":  {
+                                              "mode":  "remote",
+                                              "domain":  "model",
+                                              "timeoutMs":  1800000,
+                                              "payload":  {
+                                                              "models":  "array"
+                                                          }
+                                          },
+                     "setModelOrder":  {
+                                           "mode":  "remote",
+                                           "domain":  "model",
+                                           "timeoutMs":  300000,
+                                           "payload":  {
+                                                           "primary":  "string",
+                                                           "fallbacks":  "array"
+                                                       }
+                                       },
+                     "setImageModelOrder":  {
+                                                "mode":  "remote",
+                                                "domain":  "model",
+                                                "timeoutMs":  300000,
+                                                "payload":  {
+                                                                "primary":  "string",
+                                                                "fallbacks":  "array"
+                                                            }
+                                            },
+                     "addModel":  {
+                                      "mode":  "remote",
+                                      "domain":  "model",
+                                      "timeoutMs":  300000,
+                                      "payload":  {
+                                                      "modelRef":  "string",
+                                                      "alias":  "string",
+                                                      "displayName":  "string",
+                                                      "baseUrl":  "string",
+                                                      "apiKey":  "string",
+                                                      "inputMode":  "string"
+                                                  }
+                                  },
+                     "getPlugins":  {
+                                        "mode":  "remote",
+                                        "domain":  "plugin",
+                                        "timeoutMs":  180000,
+                                        "payload":  {
+
+                                                    }
+                                    },
+                     "getSkills":  {
+                                       "mode":  "remote",
+                                       "domain":  "skill",
+                                       "timeoutMs":  180000,
+                                       "payload":  {
+
+                                                   }
+                                   },
+                     "inspectSkill":  {
+                                          "mode":  "remote",
+                                          "domain":  "skill",
+                                          "timeoutMs":  180000,
+                                          "payload":  {
+                                                          "skillName":  "string"
+                                                      }
+                                      },
+                     "updateSkill":  {
+                                         "mode":  "remote",
+                                         "domain":  "skill",
+                                         "timeoutMs":  1080000,
+                                         "payload":  {
+                                                         "skillName":  "string"
+                                                     }
+                                     },
+                     "searchPlugins":  {
+                                           "mode":  "remote",
+                                           "domain":  "plugin",
+                                           "timeoutMs":  180000,
+                                           "payload":  {
+                                                           "query":  "string"
+                                                       }
+                                       },
+                     "browsePluginCommunity":  {
+                                                   "mode":  "local",
+                                                   "domain":  "pluginCommunity",
+                                                   "timeoutMs":  60000,
+                                                   "payload":  {
+                                                                   "sort":  "string",
+                                                                   "cursor":  "string",
+                                                                   "forceRefresh":  "boolean"
+                                                               }
+                                               },
+                     "searchPluginCommunity":  {
+                                                   "mode":  "local",
+                                                   "domain":  "pluginCommunity",
+                                                   "timeoutMs":  60000,
+                                                   "payload":  {
+                                                                   "query":  "string",
+                                                                   "forceRefresh":  "boolean"
+                                                               }
+                                               },
+                     "checkPluginCommunitySecurity":  {
+                                                          "mode":  "local",
+                                                          "domain":  "pluginCommunity",
+                                                          "timeoutMs":  60000,
+                                                          "payload":  {
+                                                                          "packageName":  "string",
+                                                                          "version":  "string",
+                                                                          "forceRefresh":  "boolean"
+                                                                      }
+                                                      },
+                     "inspectPlugin":  {
+                                           "mode":  "remote",
+                                           "domain":  "plugin",
+                                           "timeoutMs":  180000,
+                                           "payload":  {
+                                                           "pluginId":  "string"
+                                                       }
+                                       },
+                     "setPluginEnabled":  {
+                                              "mode":  "remote",
+                                              "domain":  "plugin",
+                                              "timeoutMs":  300000,
+                                              "payload":  {
+                                                              "pluginId":  "string",
+                                                              "enabled":  "boolean",
+                                                              "acceptCapabilities":  "boolean"
+                                                          }
+                                          },
+                     "reloadPlugin":  {
+                                          "mode":  "remote",
+                                          "domain":  "plugin",
+                                          "timeoutMs":  300000,
+                                          "payload":  {
+                                                          "pluginId":  "string",
+                                                          "acceptCapabilities":  "boolean"
+                                                      }
+                                      },
+                     "updatePlugin":  {
+                                          "mode":  "remote",
+                                          "domain":  "plugin",
+                                          "timeoutMs":  1080000,
+                                          "payload":  {
+                                                          "pluginId":  "string",
+                                                          "acceptCapabilities":  "boolean"
+                                                      }
+                                      },
+                     "uninstallPlugin":  {
+                                             "mode":  "remote",
+                                             "domain":  "plugin",
+                                             "timeoutMs":  1080000,
+                                             "payload":  {
+                                                             "pluginId":  "string"
+                                                         }
+                                         },
+                     "installPlugin":  {
+                                           "mode":  "remote",
+                                           "domain":  "plugin",
+                                           "timeoutMs":  1080000,
+                                           "payload":  {
+                                                           "packageSpec":  "string",
+                                                           "acceptCapabilities":  "boolean"
+                                                       }
+                                       },
+                     "readSticker":  {
+                                         "mode":  "remote",
+                                         "domain":  "read",
+                                         "timeoutMs":  180000,
+                                         "payload":  {
+                                                         "path":  "string"
+                                                     }
+                                     },
+                     "readStickerThumbnail":  {
+                                                  "mode":  "remote",
+                                                  "domain":  "thumbnail",
+                                                  "timeoutMs":  180000,
+                                                  "payload":  {
+                                                                  "path":  "string"
+                                                              }
+                                              },
+                     "previewStickerRows":  {
+                                                "mode":  "local",
+                                                "domain":  "edit",
+                                                "timeoutMs":  30000,
+                                                "payload":  {
+                                                                "rows":  "array"
+                                                            }
+                                            },
+                     "saveStickerRows":  {
+                                             "mode":  "remote",
+                                             "domain":  "edit",
+                                             "timeoutMs":  300000,
+                                             "payload":  {
+                                                             "rows":  "array"
+                                                         }
+                                         },
+                     "saveStickerRaw":  {
+                                            "mode":  "remote",
+                                            "domain":  "edit",
+                                            "timeoutMs":  300000,
+                                            "payload":  {
+                                                            "catalog":  "string",
+                                                            "manifest":  "string"
+                                                        }
+                                        },
+                     "beginStickerUpload":  {
+                                                "mode":  "uploadStart",
+                                                "domain":  "edit",
+                                                "timeoutMs":  30000,
+                                                "payload":  {
+                                                                "fileName":  "string",
+                                                                "size":  "integer"
+                                                            }
+                                            },
+                     "appendStickerUpload":  {
+                                                 "mode":  "uploadChunk",
+                                                 "domain":  "upload",
+                                                 "timeoutMs":  60000,
+                                                 "payload":  {
+                                                                 "uploadId":  "string",
+                                                                 "offset":  "integer",
+                                                                 "contentBase64":  "string",
+                                                                 "sha256":  "string"
+                                                             }
+                                             },
+                     "commitStickerUpload":  {
+                                                 "mode":  "uploadFinalize",
+                                                 "domain":  "edit",
+                                                 "timeoutMs":  1800000,
+                                                 "payload":  {
+                                                                 "uploadId":  "string"
+                                                             }
+                                             },
+                     "streamStickerUpload":  {
+                                                 "mode":  "upload",
+                                                 "domain":  "upload",
+                                                 "timeoutMs":  1800000,
+                                                 "payload":  {
+                                                                 "fileName":  "string",
+                                                                 "size":  "integer"
+                                                             }
+                                             },
+                     "cancelStickerUpload":  {
+                                                 "mode":  "uploadCancel",
+                                                 "domain":  "control",
+                                                 "timeoutMs":  15000,
+                                                 "payload":  {
+                                                                 "uploadId":  "string"
+                                                             }
+                                             },
+                     "renameSticker":  {
+                                           "mode":  "remote",
+                                           "domain":  "edit",
+                                           "timeoutMs":  300000,
+                                           "payload":  {
+                                                           "oldFileName":  "string",
+                                                           "newFileName":  "string"
+                                                       }
+                                       },
+                     "backup":  {
+                                    "mode":  "remote",
+                                    "domain":  "backup",
+                                    "timeoutMs":  7200000,
+                                    "payload":  {
+
+                                                }
+                                },
+                     "toggleBackupPause":  {
+                                               "mode":  "control",
+                                               "domain":  "control",
+                                               "timeoutMs":  15000,
+                                               "payload":  {
+
+                                                           }
+                                           },
+                     "cancelBackup":  {
+                                          "mode":  "control",
+                                          "domain":  "control",
+                                          "timeoutMs":  15000,
+                                          "payload":  {
+
+                                                      }
+                                      },
+                     "openPrivateFolder":  {
+                                               "mode":  "local",
+                                               "domain":  "local",
+                                               "timeoutMs":  15000,
+                                               "payload":  {
+
+                                                           }
+                                           },
+                     "openBackupFolder":  {
+                                              "mode":  "local",
+                                              "domain":  "local",
+                                              "timeoutMs":  15000,
+                                              "payload":  {
+
+                                                          }
+                                          },
+                     "exportLogs":  {
+                                        "mode":  "local",
+                                        "domain":  "local",
+                                        "timeoutMs":  60000,
+                                        "payload":  {
+
+                                                    }
+                                    },
+                     "draftState":  {
+                                        "mode":  "local",
+                                        "domain":  "local",
+                                        "timeoutMs":  15000,
+                                        "payload":  {
+                                                        "dirty":  "boolean"
+                                                    }
+                                    },
+                     "close":  {
+                                   "mode":  "control",
+                                   "domain":  "control",
+                                   "timeoutMs":  15000,
+                                   "payload":  {
+
+                                               }
+                               },
+                     "cancelOperation":  {
+                                             "mode":  "control",
+                                             "domain":  "control",
+                                             "timeoutMs":  15000,
+                                             "payload":  {
+                                                             "operationId":  "string"
+                                                         }
+                                         }
+                 }
 });
 })();

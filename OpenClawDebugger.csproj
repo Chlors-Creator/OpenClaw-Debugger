@@ -18,8 +18,11 @@
     <EmbeddedResource Include="RemoteAgentProgram.py" />
     <EmbeddedResource Include="RemotePluginOperations.py" />
     <EmbeddedResource Include="RemoteSkillOperations.py" />
-    <Content Include="WebUi\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="WebUi\**\*" CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" />
     <Content Include="Assets\Backgrounds\Atri.jpg" Link="WebUi\assets\Atri.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Backgrounds\Luoxi.jpg" Link="WebUi\assets\Luoxi.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <Target Name="GenerateBridgeContract" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true' and '$(MSBuildProjectName)' == 'OpenClawDebugger'">
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ProjectDir)Tools\Generate-BridgeContract.ps1&quot;" WorkingDirectory="$(ProjectDir)" />
+  </Target>
 </Project>

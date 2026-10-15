@@ -260,6 +260,7 @@
   }
 
   window.OpenClawPluginCommunityView = {
+    resultValue,
     records,
     nextCursor,
     packageName,

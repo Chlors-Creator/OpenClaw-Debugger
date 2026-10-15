@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$InputPath = (Join-Path $PSScriptRoot '..\WebUi\bridge-contract.json'),
     [string]$CSharpPath = (Join-Path $PSScriptRoot '..\BridgeContractGenerated.cs'),
     [string]$JavaScriptPath = (Join-Path $PSScriptRoot '..\WebUi\bridge-contract.generated.js')
