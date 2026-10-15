@@ -23,6 +23,8 @@ public partial class MainWindow : Window
     private readonly PluginCommunityService _pluginCommunity;
     private readonly SkillCommunityService _skillCommunity;
     private readonly RemoteTaskScheduler _taskScheduler;
+    private readonly CustomArtifactService _customArtifacts;
+    private CustomArtifactBridgeHandler? _customArtifactBridge;
     private readonly object _busySync = new();
     private UserSettings _settings = new();
     private bool _busy;
@@ -43,6 +45,7 @@ public partial class MainWindow : Window
         var clawHubClient = new ClawHubPluginClient(_clawHubHttpClient);
         _pluginCommunity = new PluginCommunityService(clawHubClient, new ClawHubPluginSecurityScanner(clawHubClient));
         _skillCommunity = new SkillCommunityService(new ClawHubSkillClient(_clawHubHttpClient));
+        _customArtifacts = new CustomArtifactService(SettingsRepository.DefaultPrivateDirectory);
         _taskScheduler = new RemoteTaskScheduler(status =>
             _bridgeResponses.SendProgress("task", status));
         _connection = new ConnectionCoordinator(
@@ -129,11 +132,22 @@ public partial class MainWindow : Window
         return await _taskScheduler.EnqueueAsync(
             operationId,
             command,
-            async token => command == "streamStickerUpload"
-                ? await (_connection.Stickers ?? throw new InvalidOperationException("表情包服务未初始化。"))
-                    .UploadFileAsync(payload, files.FirstOrDefault()?.Path ?? throw new InvalidDataException("没有收到本地上传文件。"), token)
-                : await router.DispatchAsync(command, payload, token),
+            async token => await DispatchQueuedAsync(command, payload, files, router, token),
             cancellationToken);
+    }
+
+    private async Task<object?> DispatchQueuedAsync(
+        string command, JsonElement payload, IReadOnlyList<CoreWebView2File> files,
+        BridgeCommandRouter router, CancellationToken cancellationToken)
+    {
+        var localPath = files.FirstOrDefault()?.Path;
+        if (command == "streamStickerUpload")
+            return await (_connection.Stickers ?? throw new InvalidOperationException("表情包服务未初始化。"))
+                .UploadFileAsync(payload, localPath ?? throw new InvalidDataException("没有收到本地上传文件。"), cancellationToken);
+        if (command == "uploadCustomArtifact")
+            return await (_customArtifactBridge ?? throw new InvalidOperationException("自定义上传服务未初始化。"))
+                .UploadFileAsync(payload, localPath ?? throw new InvalidDataException("没有收到本地 ZIP 包。"), cancellationToken);
+        return await router.DispatchAsync(command, payload, cancellationToken);
     }
 
     private BridgeCommandRouter CreateCommandRouter()
@@ -152,6 +166,8 @@ public partial class MainWindow : Window
         new ModelBridgeHandler(() => _connection.Models).Register(router);
         new PluginBridgeHandler(() => _connection.Plugins).Register(router);
         new SkillBridgeHandler(() => _connection.Skills).Register(router);
+        _customArtifactBridge = new CustomArtifactBridgeHandler(_customArtifacts);
+        _customArtifactBridge.Register(router);
         new SkillCommunityBridgeHandler(_skillCommunity).Register(router);
         new PluginCommunityBridgeHandler(_pluginCommunity).Register(router);
         new BackupBridgeHandler(() => _connection.Backup, () => _settings.Connection, OpenFolder).Register(router);

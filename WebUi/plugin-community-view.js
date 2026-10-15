@@ -67,6 +67,10 @@
     return window.OpenClawPluginCategoryUtils.values(item);
   }
 
+  function categoryLabels(item) {
+    return categories(item).map(window.OpenClawPluginCategoryUtils.label);
+  }
+
   function count(item, keys) {
     const value = firstValue(item, keys);
     return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
@@ -127,7 +131,7 @@
     const values = [
       firstValue(item, ['owner.handle', 'publisher.handle', 'ownerHandle', 'publisherName']),
       version(item),
-      categories(item).join(', '),
+      categoryLabels(item).join('、'),
       firstValue(item, ['family'])
     ].map(scalar).filter(Boolean);
     return values.length ? values.join(' · ') : 'ClawHub 插件';
@@ -210,7 +214,7 @@
       ['发布者', scalar(firstValue(item, ['owner.handle', 'publisher.handle', 'ownerHandle', 'publisherName']))],
       ['版本', version(item)],
       ['类型', scalar(firstValue(item, ['family']))],
-      ['分类', categories(item).join(', ')],
+      ['分类', categoryLabels(item).join('、')],
       ['许可证', scalar(firstValue(item, ['license', 'licenseId']))],
       ['来源仓库', scalar(firstValue(item, ['sourceRepo', 'repository', 'source.repository']))],
       ['ClawHub 星标', count(item, ['statsStars', 'stats.stars', 'stars'])],

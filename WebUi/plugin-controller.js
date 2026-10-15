@@ -26,7 +26,6 @@
     state.loadController = operation;
     state.loading = true;
     state.loadError = '';
-    controller.$('#pluginStatus').textContent = '正在读取远端插件清单…';
     controller.dependencies.render();
     syncButtons(controller);
     try {
@@ -36,7 +35,7 @@
       return !state.listFormatError;
     } catch (error) {
       state.loadError = String(error && error.message || error);
-      reportOperationError(controller, error, { prefix: '读取插件清单失败：', target: '#pluginStatus' });
+      reportOperationError(controller, error, '读取插件清单失败：');
       controller.dependencies.render();
       return false;
     } finally {
@@ -54,9 +53,11 @@
     state.loadError = '';
     controller.view.renderInstalled(controller);
     controller.dependencies.render();
-    const status = plugins === null ? '插件清单格式无法识别' : '已读取 ' + plugins.length + ' 个插件';
-    controller.$('#pluginStatus').textContent = status + controller.view.diagnostics(response);
-    controller.setStatus(status + controller.view.diagnostics(response), state.listFormatError || Boolean(response.diagnostics));
+    if (state.listFormatError) {
+      controller.setStatus('插件清单格式无法识别' + controller.view.diagnostics(response), true);
+    } else if (response.diagnostics) {
+      controller.setStatus('插件清单诊断：' + String(response.diagnostics), true);
+    }
   }
 
   function finishLoad(controller, generation) {
@@ -68,10 +69,11 @@
     syncButtons(controller);
   }
 
-  function reportOperationError(controller, error, options) {
+  function reportOperationError(controller, error, prefix) {
     if (error && error.name === 'AbortError') return;
-    controller.$(options.target).textContent = options.prefix + String(error && error.message || error);
-    controller.reportError(error);
+    const message = prefix + String(error && error.message || error);
+    controller.setStatus(message, true);
+    controller.showToast(message, true);
   }
 
   function askConfirmation(controller, options) {
@@ -150,12 +152,12 @@
 
   function handleAction(controller, action, id) {
     const handler = actionMap(controller)[action];
-    if (handler && id) handler(id).catch(error => reportOperationError(controller, error, { prefix: '插件操作失败：', target: '#pluginStatus' }));
+    if (handler && id) handler(id).catch(error => reportOperationError(controller, error, '插件操作失败：'));
   }
 
   async function installFromInputSafely(controller) {
     try { await installFromInput(controller); }
-    catch (error) { reportOperationError(controller, error, { prefix: '插件操作失败：', target: '#pluginStatus' }); }
+    catch (error) { reportOperationError(controller, error, '插件操作失败：'); }
   }
 
   async function installFromInput(controller) {
@@ -165,7 +167,7 @@
 
   async function installSpecSafely(controller, packageSpec) {
     try { await requestInstall(controller, packageSpec); }
-    catch (error) { reportOperationError(controller, error, { prefix: '插件安装失败：', target: '#pluginStatus' }); }
+    catch (error) { reportOperationError(controller, error, '插件安装失败：'); }
   }
 
   async function requestInstall(controller, packageSpec) {
@@ -228,7 +230,6 @@
     state.loadError = '';
     controller.$('#pluginCount').textContent = '0';
     controller.$('#pluginListCount').textContent = '0';
-    controller.$('#pluginStatus').textContent = '连接服务器后读取插件状态。';
     controller.view.renderInstalled(controller);
     controller.dependencies.render();
     syncButtons(controller);

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="plugin-categories.css">
   <link rel="stylesheet" href="dependencies.css">
   <link rel="stylesheet" href="skills.css">
+  <link rel="stylesheet" href="custom-artifacts.css">
   <link rel="stylesheet" href="skill-community.css">
   <link rel="stylesheet" href="firewall.css">
   <script src="bridge-contract.generated.js" defer></script>
@@ -23,6 +24,7 @@
   <script src="model-state.js" defer></script>
   <script src="plugin-state.js" defer></script>
   <script src="skill-state.js" defer></script>
+  <script src="custom-artifact-state.js" defer></script>
   <script src="skill-community-state.js" defer></script>
   <script src="plugin-community-state.js" defer></script>
   <script src="sticker-state.js" defer></script>
@@ -38,6 +40,8 @@
   <script src="dependency-controller.js" defer></script>
   <script src="skill-view.js" defer></script>
   <script src="skill-controller.js" defer></script>
+  <script src="custom-artifact-view.js" defer></script>
+  <script src="custom-artifact-controller.js" defer></script>
   <script src="skill-community-view.js" defer></script>
   <script src="skill-community-controller.js" defer></script>
   <script src="plugin-community-view.js" defer></script>
@@ -71,6 +75,7 @@
         <button class="nav-tab" data-tab="stickers"><span class="nav-shape"></span><span class="nav-label">表情包</span></button>
         <button class="nav-tab" data-tab="plugins"><span class="nav-shape"></span><span class="nav-label">插件</span></button>
         <button class="nav-tab" data-tab="skills"><span class="nav-shape"></span><span class="nav-label">技能</span></button>
+        <button class="nav-tab" data-tab="custom"><span class="nav-shape"></span><span class="nav-label">自定义</span></button>
         <button class="nav-tab" data-tab="dependencies"><span class="nav-shape"></span><span class="nav-label">依赖</span></button>
         <button class="nav-tab" data-tab="themes"><span class="nav-shape"></span><span class="nav-label">主题</span></button>
         <button class="nav-tab" data-tab="settings"><span class="nav-shape"></span><span class="nav-label">设置</span></button>
@@ -162,7 +167,6 @@
             <div class="plugin-install-row"><label>安装包来源<input id="pluginPackageInput" type="text" placeholder="ClawHub、npm、Git、服务器本地路径或归档" autocomplete="off" spellcheck="false"></label><button class="button button-primary" id="pluginInstallButton" type="button" disabled>安装（保持禁用）</button></div>
           </article>
         </div>
-        <div class="plugin-page-status" id="pluginStatus" role="status" aria-live="polite">连接服务器后读取插件状态。</div>
       </section>
 
       <section class="page page-skills" id="page-skills">
@@ -183,6 +187,34 @@
             <div class="skill-community-search-status" id="skillCommunitySearchStatus" role="status" aria-live="polite">正在读取 ClawHub 技能目录…</div>
             <div class="skill-community-results" id="skillCommunityResults"><div class="empty-state">技能社区结果会显示在这里</div></div>
             <button class="button button-quiet plugin-community-more" id="skillCommunityLoadMoreButton" type="button" hidden>加载更多</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="page page-custom-artifacts" id="page-custom">
+        <div class="section-heading">
+          <div><div class="eyebrow">MY OPENCLAW EXTENSIONS</div><h2>自定义插件与技能</h2><p>只显示你上传的自制项目，与社区下载和服务器现有项目分开管理。</p></div>
+          <div class="button-row"><button class="button button-quiet" id="customArtifactRefreshButton" type="button">⟳ 刷新列表</button></div>
+        </div>
+        <div class="custom-artifact-grid">
+          <article class="panel glass custom-artifact-panel">
+            <div class="side-title"><strong>自制插件</strong><span id="customPluginCount">0</span></div>
+            <label class="search-box"><span>⌕</span><input id="customPluginSearch" type="search" placeholder="筛选自制插件" aria-label="筛选自制插件"></label>
+            <div class="plugin-list custom-artifact-list empty-state" id="customPluginList">正在读取自定义列表…</div>
+          </article>
+          <article class="panel glass custom-artifact-panel">
+            <div class="side-title"><strong>自制技能</strong><span id="customSkillCount">0</span></div>
+            <label class="search-box"><span>⌕</span><input id="customSkillSearch" type="search" placeholder="筛选自制技能" aria-label="筛选自制技能"></label>
+            <div class="plugin-list custom-artifact-list empty-state" id="customSkillList">正在读取自定义列表…</div>
+          </article>
+          <article class="panel glass custom-menu-panel">
+            <div class="panel-heading"><div><div class="eyebrow">LOCAL CUSTOM LIBRARY</div><h3>自定义菜单</h3></div><span class="heading-mark">＋</span></div>
+            <p class="muted custom-menu-description">上传自制 ZIP 包并读取名称、版本和介绍。文件仅保存到本机自定义库，不会自动部署或执行。</p>
+            <label class="custom-upload-field">项目类型<select id="customArtifactType"><option value="plugin">自制插件</option><option value="skill">自制技能</option></select></label>
+            <label class="custom-upload-field">ZIP 包<input id="customArtifactFile" type="file" accept=".zip,application/zip"></label>
+            <div class="custom-selected-file" id="customArtifactSelectedFile">尚未选择文件</div>
+            <button class="button button-primary custom-upload-button" id="customArtifactUploadButton" type="button" disabled>↑ 上传到自定义列表</button>
+            <div class="plugin-page-status" id="customArtifactStatus" role="status" aria-live="polite">插件包需要包含一个受支持的插件清单；技能包需要包含一个 SKILL.md。</div>
           </article>
         </div>
       </section>
@@ -276,6 +308,10 @@
 
       <dialog class="modal plugin-detail-dialog" id="skillDetailDialog">
         <form method="dialog"><div class="modal-head"><div><div class="eyebrow">OPENCLAW SKILL</div><h3 id="skillDetailTitle">技能详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted">服务器返回的技能检查详情。</p><pre id="skillDetailBody" class="plugin-json"></pre><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-detail-dialog" id="customArtifactDetailDialog">
+        <form method="dialog"><div class="modal-head"><div><div class="eyebrow">CUSTOM ARTIFACT DETAILS</div><h3 id="customArtifactDetailTitle">自定义项目详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted">此处展示上传包读取到的元数据；文件保存在本机自定义库中。</p><pre id="customArtifactDetailBody" class="plugin-json"></pre><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button></div></form>
       </dialog>
 
       <dialog class="modal plugin-action-dialog skill-update-dialog" id="skillUpdateDialog">

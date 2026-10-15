@@ -35,6 +35,28 @@
     return element;
   }
 
+  function renderCategoryTags(plugin) {
+    const categories = window.OpenClawPluginCategoryUtils.values(plugin);
+    const tags = document.createElement('div');
+    tags.className = 'plugin-category-tags';
+    if (categories.length) {
+      categories.forEach(category => tags.appendChild(textElement(
+        'span', 'plugin-category-tag', window.OpenClawPluginCategoryUtils.label(category))));
+      return tags;
+    }
+    const status = plugin.clawHubCategoryStatus;
+    const labels = {
+      pending: '正在查找 ClawHub 分类',
+      notFound: '未收录于 ClawHub',
+      missing: 'ClawHub 未提供分类',
+      error: 'ClawHub 分类查询失败'
+    };
+    const tag = textElement('span', 'plugin-category-tag plugin-category-tag-muted', labels[status] || '未分类');
+    if (plugin.clawHubCategoryError) tag.title = String(plugin.clawHubCategoryError);
+    tags.appendChild(tag);
+    return tags;
+  }
+
   function actionButton(options) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -74,6 +96,7 @@
     heading.className = 'plugin-card-heading';
     heading.append(textElement('strong', '', displayName(plugin)), textElement('span', 'plugin-status-tag', String(plugin.status || (enabled(plugin) ? 'enabled' : 'disabled'))));
     card.append(heading, textElement('code', 'plugin-id', id || '缺少插件 ID'));
+    card.appendChild(renderCategoryTags(plugin));
     const details = [plugin.version, plugin.source, plugin.dependencyStatus].filter(value => value !== undefined && value !== null && value !== '');
     if (details.length) card.appendChild(textElement('small', 'plugin-meta', details.map(String).join(' · ')));
     if (plugin.description) card.appendChild(textElement('p', 'plugin-description', String(plugin.description)));

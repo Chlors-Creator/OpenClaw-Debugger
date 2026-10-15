@@ -1,0 +1,17 @@
+.page-custom-artifacts .section-heading{align-items:center}
+.custom-artifact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(250px,.9fr);gap:13px;align-items:start}
+.custom-artifact-panel,.custom-menu-panel{min-width:0;padding:15px}
+.custom-artifact-list{max-height:580px;margin-top:9px}
+.custom-artifact-card{border-left:3px solid color-mix(in srgb,var(--palette-accent) 65%,var(--line))}
+.custom-artifact-card .plugin-card-heading strong{overflow-wrap:anywhere}
+.custom-artifact-card .plugin-card-actions{flex-wrap:wrap}
+.custom-menu-description{margin:3px 0 16px;font-size:10px;line-height:1.65}
+.custom-upload-field{display:flex;flex-direction:column;gap:7px;margin-top:12px;color:var(--muted);font-size:10px}
+.custom-upload-field select,.custom-upload-field input[type=file]{width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--palette-surface) 70%,transparent);color:var(--ink);padding:9px 10px;font:10px 'DM Sans',sans-serif;outline:0}
+.custom-upload-field select:focus,.custom-upload-field input[type=file]:focus{border-color:var(--palette-accent)}
+.custom-upload-field input[type=file]::file-selector-button{margin-right:9px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:color-mix(in srgb,var(--palette-accent) 14%,var(--palette-surface));color:var(--palette-accent2);font:600 9px 'DM Sans',sans-serif;cursor:pointer}
+.custom-selected-file{min-height:32px;margin-top:9px;padding:8px 10px;border:1px dashed var(--line);border-radius:9px;color:var(--muted2);font-size:9px;overflow-wrap:anywhere}
+.custom-upload-button{width:100%;margin-top:12px}
+.custom-menu-panel .plugin-page-status{margin:11px 0 0;line-height:1.5}
+@media(max-width:1050px){.custom-artifact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.custom-menu-panel{grid-column:1/-1}}
+@media(max-width:620px){.page-custom-artifacts .section-heading{align-items:flex-start;flex-direction:column}.custom-artifact-grid{grid-template-columns:1fr}.custom-menu-panel{grid-column:auto}}
