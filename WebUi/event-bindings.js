@@ -10,12 +10,22 @@
       loadStickerThumbnail, hasDraggedFiles, getDroppedFiles, saveRawEditor,
       setBackdropValue, resetBackdrop, showToast, persistTheme, pluginController, pluginCommunityController
     } = deps;
+    async function toggleConnectionAndRefreshDependencies() {
+      const wasConnected = $('.connection-chip').classList.contains('connected');
+      await toggleConnection();
+      if (!wasConnected && appState.currentTab === 'dependencies' && $('.connection-chip').classList.contains('connected')) {
+        await pluginController.dependencies.load();
+      }
+    }
     function wireEvents() {
 
-    $$('.nav-tab').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.tab)));
+    $$('.nav-tab').forEach(button => button.addEventListener('click', () => {
+      switchTab(button.dataset.tab);
+      if (button.dataset.tab === 'dependencies') pluginController.dependencies.load();
+    }));
     $$('[data-go]').forEach(button => button.addEventListener('click', () => switchTab(button.dataset.go)));
     const connectionButton = $('#connectButton');
-    connectionButton.addEventListener('click', toggleConnection);
+    connectionButton.addEventListener('click', toggleConnectionAndRefreshDependencies);
     connectionButton.addEventListener('mouseenter', syncConnectionButton);
     connectionButton.addEventListener('mouseleave', syncConnectionButton);
     connectionButton.addEventListener('focusin', syncConnectionButton);
@@ -40,10 +50,16 @@
     $('#modelAddCloseButton').addEventListener('click', () => $('#modelAddDialog').close());
     $('#modelAddForm').addEventListener('submit', event => { event.preventDefault(); submitAddModel(); });
     $('#pluginRefreshButton').addEventListener('click', () => pluginController.load(true));
+    $('#skillUpdateForm').addEventListener('submit', event => {
+      event.preventDefault(); $('#skillUpdateDialog').close('confirm');
+    });
+    $('#skillUpdateCancelButton').addEventListener('click', () => $('#skillUpdateDialog').close('cancel'));
+    $('#skillUpdateCloseButton').addEventListener('click', () => $('#skillUpdateDialog').close('cancel'));
     $('#pluginSearchForm').addEventListener('submit', event => { event.preventDefault(); pluginCommunityController.search(); });
     $('#pluginCommunityRefreshButton').addEventListener('click', pluginCommunityController.refresh);
     $('#pluginCommunityLoadMoreButton').addEventListener('click', pluginCommunityController.loadMore);
     $('#pluginFilter').addEventListener('input', pluginController.renderInstalled);
+    $('#pluginCategoryFilter').addEventListener('change', pluginController.renderInstalled);
     $('#pluginInstallButton').addEventListener('click', pluginController.installFromInput);
     $('#pluginList').addEventListener('click', event => {
       const button = event.target.closest('[data-plugin-action]');
@@ -51,7 +67,11 @@
     });
     $('#pluginSearchResults').addEventListener('click', event => {
       const button = event.target.closest('[data-community-action]');
-      if (button) pluginCommunityController.handleAction(button.dataset.communityAction, Number(button.dataset.communityIndex));
+      if (button) pluginCommunityController.handleAction(button.dataset.communityAction, Number(button.dataset.communityIndex), button.dataset.communitySource);
+    });
+    $('#pluginCommunityHotList').addEventListener('click', event => {
+      const button = event.target.closest('[data-community-action]');
+      if (button) pluginCommunityController.handleAction(button.dataset.communityAction, Number(button.dataset.communityIndex), button.dataset.communitySource);
     });
     $('#pluginCommunitySecurityButton').addEventListener('click', () => {
       if (appState.pluginCommunity.selectedItem) pluginCommunityController.checkSecurity(appState.pluginCommunity.selectedItem);
@@ -149,7 +169,10 @@
       appState.model.imageOrderController?.abort();
       appState.model.addController?.abort();
       appState.plugin.loadController?.abort();
+      appState.skill.loadController?.abort();
+      appState.skill.detailController?.abort();
       appState.pluginCommunity.requestController?.abort();
+      appState.pluginCommunity.hotRequestController?.abort();
       appState.pluginCommunity.securityController?.abort();
       appState.backup.controller?.abort();
       appState.bridge?.cancelAll();

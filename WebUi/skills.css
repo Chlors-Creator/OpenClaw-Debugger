@@ -1,0 +1,9 @@
+.page-skills .section-heading{align-items:center}
+.skill-panel{min-width:0;padding:15px}
+.skill-list{max-height:none;min-height:230px;margin-top:8px}
+.skill-card{border-left:3px solid color-mix(in srgb,var(--palette-accent) 60%,var(--line))}
+.skill-card .plugin-card-heading strong{overflow-wrap:anywhere}
+.skill-card .plugin-card-actions{flex-wrap:wrap}
+.skill-update-dialog{width:min(560px,94vw)}
+.skill-update-target{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;color:var(--accent2);background:color-mix(in srgb,var(--surface-strong) 75%,transparent);overflow-wrap:anywhere;font:10px/1.5 'Cascadia Code',Consolas,monospace}
+@media(max-width:620px){.page-skills .section-heading{align-items:flex-start;flex-direction:column}.page-skills .section-heading>.button-row{width:100%;justify-content:space-between}}

@@ -12,7 +12,9 @@ internal static class RemoteAgentProgram
 {
     private const string ResourceName = "OpenClawDebugger.RemoteAgentProgram.py";
     private const string PluginOperationsResourceName = "OpenClawDebugger.RemotePluginOperations.py";
+    private const string SkillOperationsResourceName = "OpenClawDebugger.RemoteSkillOperations.py";
     private const string PluginOperationsMarker = "# OPENCLAW_PLUGIN_OPERATIONS";
+    private const string SkillOperationsMarker = "# OPENCLAW_SKILL_OPERATIONS";
     private static readonly Lazy<string> Script = new(LoadScript, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static string Main => Script.Value;
@@ -22,10 +24,17 @@ internal static class RemoteAgentProgram
         var assembly = typeof(RemoteAgentProgram).Assembly;
         var source = ReadResource(assembly, ResourceName);
         var pluginOperations = ReadResource(assembly, PluginOperationsResourceName);
-        if (source.IndexOf(PluginOperationsMarker, StringComparison.Ordinal) < 0 ||
-            source.IndexOf(PluginOperationsMarker, StringComparison.Ordinal) != source.LastIndexOf(PluginOperationsMarker, StringComparison.Ordinal))
-            throw new InvalidOperationException("远程代理插件操作插入点缺失或重复。");
-        return source.Replace(PluginOperationsMarker, pluginOperations, StringComparison.Ordinal);
+        var skillOperations = ReadResource(assembly, SkillOperationsResourceName);
+        source = ReplaceMarker(source, PluginOperationsMarker, pluginOperations, "插件");
+        return ReplaceMarker(source, SkillOperationsMarker, skillOperations, "技能");
+    }
+
+    private static string ReplaceMarker(string source, string marker, string operations, string label)
+    {
+        var first = source.IndexOf(marker, StringComparison.Ordinal);
+        if (first < 0 || first != source.LastIndexOf(marker, StringComparison.Ordinal))
+            throw new InvalidOperationException("远程代理" + label + "操作插入点缺失或重复。");
+        return source.Replace(marker, operations, StringComparison.Ordinal);
     }
 
     private static string ReadResource(Assembly assembly, string resourceName)

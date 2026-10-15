@@ -9,8 +9,10 @@
     controller.installSpec = spec => installSpecSafely(controller, spec);
     controller.canInstall = () => canInstall(controller);
     controller.handleAction = (action, id) => handleAction(controller, action, id);
+    controller.updatePlugin = id => update(controller, id);
     controller.syncButtons = () => syncButtons(controller);
     controller.reset = () => reset(controller);
+    controller.dependencies = window.OpenClawDependencyController.create({ ...deps, pluginController: controller });
     controller.$('#pluginPackageInput').addEventListener('input', controller.syncButtons);
     return controller;
   }
@@ -23,7 +25,9 @@
     const operation = new AbortController();
     state.loadController = operation;
     state.loading = true;
+    state.loadError = '';
     controller.$('#pluginStatus').textContent = '正在读取远端插件清单…';
+    controller.dependencies.render();
     syncButtons(controller);
     try {
       const response = await controller.bridgeCall('getPlugins', {}, { signal: operation.signal });
@@ -31,7 +35,9 @@
       storeInstalled(controller, response);
       return !state.listFormatError;
     } catch (error) {
+      state.loadError = String(error && error.message || error);
       reportOperationError(controller, error, { prefix: '读取插件清单失败：', target: '#pluginStatus' });
+      controller.dependencies.render();
       return false;
     } finally {
       finishLoad(controller, generation);
@@ -45,7 +51,9 @@
     state.installedRaw = controller.view.resultValue(response);
     state.installed = plugins || [];
     state.loaded = true;
+    state.loadError = '';
     controller.view.renderInstalled(controller);
+    controller.dependencies.render();
     const status = plugins === null ? '插件清单格式无法识别' : '已读取 ' + plugins.length + ' 个插件';
     controller.$('#pluginStatus').textContent = status + controller.view.diagnostics(response);
     controller.setStatus(status + controller.view.diagnostics(response), state.listFormatError || Boolean(response.diagnostics));
@@ -86,7 +94,9 @@
       controller.$('#pluginDetailTitle').textContent = '插件详情 · ' + id;
       controller.$('#pluginDetailBody').textContent = JSON.stringify(response, null, 2);
       controller.$('#pluginDetailDialog').showModal();
-      controller.setStatus('已读取插件静态检查结果：' + id + controller.view.diagnostics(response));
+      const inspectionStatus = controller.$('#pluginInspectionStatus');
+      inspectionStatus.textContent = '已读取插件静态检查结果：' + id + controller.view.diagnostics(response);
+      inspectionStatus.hidden = false;
     });
   }
 
@@ -116,11 +126,12 @@
 
   async function update(controller, id) {
     const accepted = await askConfirmation(controller, {
-      title: '更新插件', prompt: '更新会替换服务器上的插件代码；OpenClaw 要求先停止 Gateway。', target: id,
+      title: '更新插件', prompt: '更新会替换服务器上的插件代码，并按包清单更新其运行依赖；OpenClaw 要求先停止 Gateway。', target: id,
       consentLabel: '我接受更新版本声明的新 capability；只有勾选后才会发送授权参数。'
     });
-    if (accepted === null) return;
+    if (accepted === null) return false;
     await mutate(controller, { command: 'updatePlugin', payload: { pluginId: id, acceptCapabilities: accepted }, message: '已更新插件：' + id });
+    return true;
   }
 
   async function uninstall(controller, id) {
@@ -177,9 +188,10 @@
     if (refreshed) {
       controller.setStatus(options.message);
       controller.showToast(options.message);
-      return;
+      return true;
     }
     controller.setStatus(options.message + '；但清单刷新失败，请查看错误并手动刷新。', true);
+    return true;
   }
 
   async function runBusy(controller, operation) {
@@ -200,6 +212,7 @@
     controller.$('#pluginRefreshButton').disabled = busy;
     controller.$('#pluginInstallButton').disabled = busy || !controller.$('#pluginPackageInput').value.trim();
     controller.$$('#pluginList [data-plugin-action]').forEach(button => { button.disabled = busy; });
+    controller.dependencies.syncButtons();
   }
 
   function reset(controller) {
@@ -212,10 +225,12 @@
     state.loaded = false;
     state.loading = false;
     state.mutating = false;
+    state.loadError = '';
     controller.$('#pluginCount').textContent = '0';
     controller.$('#pluginListCount').textContent = '0';
     controller.$('#pluginStatus').textContent = '连接服务器后读取插件状态。';
     controller.view.renderInstalled(controller);
+    controller.dependencies.render();
     syncButtons(controller);
   }
 

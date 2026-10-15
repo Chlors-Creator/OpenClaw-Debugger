@@ -245,7 +245,8 @@ internal sealed class RemoteAgentSession : IDisposable
     {
         var action = request["action"]?.GetValue<string>();
         return action is "inventory" or "read" or "models_inventory" or "models_test_latency" or
-            "plugins_inventory" or "plugins_search" or "plugins_inspect";
+            "plugins_inventory" or "plugins_search" or "plugins_inspect" or
+            "skills_inventory" or "skills_info";
     }
 
     private static TimeSpan RetryDelay(int attempt)

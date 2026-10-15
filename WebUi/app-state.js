@@ -15,6 +15,7 @@
     const memory = window.OpenClawMemoryState.create();
     const model = window.OpenClawModelState.create();
     const plugin = window.OpenClawPluginState.create();
+    const skill = window.OpenClawSkillState.create();
     const pluginCommunity = window.OpenClawPluginCommunityState.create();
     const sticker = window.OpenClawStickerState.create();
     const backup = window.OpenClawBackupState.create();
@@ -24,6 +25,7 @@
       memory,
       model,
       plugin,
+      skill,
       pluginCommunity,
       sticker,
       backup,
@@ -58,6 +60,7 @@
       memoryController: null,
       modelController: null,
       pluginController: null,
+      skillController: null,
       pluginCommunityController: null,
       stickerController: null,
       uploadController: null,

@@ -113,6 +113,28 @@
       "timeoutMs": 180000,
       "payload": {}
     },
+    "getSkills": {
+      "mode": "remote",
+      "domain": "skill",
+      "timeoutMs": 180000,
+      "payload": {}
+    },
+    "inspectSkill": {
+      "mode": "remote",
+      "domain": "skill",
+      "timeoutMs": 180000,
+      "payload": {
+        "skillName": "string"
+      }
+    },
+    "updateSkill": {
+      "mode": "remote",
+      "domain": "skill",
+      "timeoutMs": 1080000,
+      "payload": {
+        "skillName": "string"
+      }
+    },
     "searchPlugins": {
       "mode": "remote",
       "domain": "plugin",

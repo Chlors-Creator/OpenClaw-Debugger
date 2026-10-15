@@ -85,13 +85,17 @@
     const state = controller.state;
     const list = controller.$('#pluginList');
     if (state.listFormatError) {
+      window.OpenClawPluginCategoryUtils.updateFilter(controller.$('#pluginCategoryFilter'), []);
       controller.$('#pluginCount').textContent = '—';
       controller.$('#pluginListCount').textContent = '—';
       renderRawList(controller, state.installedRaw, '插件清单 JSON 中没有可识别的 plugins 数组。原始结果：');
       return;
     }
+    const categoryFilter = controller.$('#pluginCategoryFilter');
+    window.OpenClawPluginCategoryUtils.updateFilter(categoryFilter, state.installed);
+    const selectedCategory = categoryFilter.value;
     const query = controller.$('#pluginFilter').value.trim().toLowerCase();
-    const visible = state.installed.filter(plugin =>
+    const visible = state.installed.filter(plugin => window.OpenClawPluginCategoryUtils.matches(plugin, selectedCategory) &&
       [displayName(plugin), pluginId(plugin), plugin.source, plugin.status, plugin.version]
         .some(value => String(value || '').toLowerCase().includes(query)));
     controller.$('#pluginCount').textContent = String(state.installed.length);

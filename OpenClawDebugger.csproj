@@ -17,6 +17,7 @@
     <Resource Include="Assets\OpenClawDebugger.ico" />
     <EmbeddedResource Include="RemoteAgentProgram.py" />
     <EmbeddedResource Include="RemotePluginOperations.py" />
+    <EmbeddedResource Include="RemoteSkillOperations.py" />
     <Content Include="WebUi\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Backgrounds\Atri.jpg" Link="WebUi\assets\Atri.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Backgrounds\Luoxi.jpg" Link="WebUi\assets\Luoxi.jpg" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

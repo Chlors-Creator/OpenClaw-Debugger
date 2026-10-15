@@ -42,6 +42,18 @@ public sealed partial class RemoteOpenClawClient : IDisposable
                 ? TimeSpan.FromMinutes(16)
                 : null);
 
+    internal Task<JsonObject> InvokeSkillAsync(
+        ConnectionSettings settings,
+        JsonObject request,
+        CancellationToken cancellationToken = default) =>
+        _session.InvokeAsync(
+            settings,
+            request,
+            cancellationToken,
+            string.Equals(request["action"]?.GetValue<string>(), "skills_update", StringComparison.Ordinal)
+                ? TimeSpan.FromMinutes(16)
+                : null);
+
 
     public async Task<IReadOnlyList<RemoteFile>> ConnectAndListAsync(
         ConnectionSettings settings, CancellationToken cancellationToken = default)

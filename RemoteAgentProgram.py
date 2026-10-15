@@ -32,6 +32,7 @@ MAX_TEXT = 4 * 1024 * 1024
 MAX_IMAGE = 30 * 1024 * 1024
 
 # OPENCLAW_PLUGIN_OPERATIONS
+# OPENCLAW_SKILL_OPERATIONS
 
 def openclaw_config():
     candidates = []
@@ -1212,6 +1213,8 @@ def handle(encoded, binary_payload=None):
             models_test_latency()
         elif isinstance(action, str) and action.startswith("plugins_"):
             handle_plugin_action(action)
+        elif isinstance(action, str) and action.startswith("skills_"):
+            handle_skill_action(action)
         else:
             fail("不支持的操作")
     except SystemExit:
@@ -1219,7 +1222,7 @@ def handle(encoded, binary_payload=None):
     except Exception as e:
         fail(type(e).__name__ + ": " + str(e))
 
-REPLAYABLE_ACTIONS = {"inventory", "models_inventory", "models_test_latency"}
+REPLAYABLE_ACTIONS = {"inventory", "models_inventory", "models_test_latency", "skills_inventory", "skills_info"}
 
 def decode_request(encoded):
     try:

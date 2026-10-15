@@ -101,6 +101,7 @@
     syncRenameButton();
     syncModelButtons();
     syncPluginButtons();
+    appState.skillController?.syncButtons();
     syncConnectionButton();
   }
 
@@ -146,6 +147,7 @@
     appState.dirtyRaw = false;
     appState.modelController?.reset();
     appState.pluginController?.reset();
+    appState.skillController?.reset();
     $('.connection-chip').classList.remove('connected');
     $('#connectionStatus').textContent = '尚未连接';
     $('#memoryCount').textContent = '—';
@@ -212,6 +214,8 @@
       if (isConnected() && !appState.plugin.loaded && !appState.plugin.loading) appState.pluginController?.load();
       if (!appState.pluginCommunity.loaded && !appState.pluginCommunity.loading) appState.pluginCommunityController?.browse();
     }
+    if (name === 'skills' && isConnected() && !appState.skill.loaded && !appState.skill.loading)
+      appState.skillController?.load();
   }
 
   function setDirtyState() {
@@ -299,6 +303,7 @@
     $('#connectionStatus').textContent = '正在连接';
     $('.connection-chip').classList.remove('connected');
     appState.pluginController?.reset();
+    appState.skillController?.reset();
     setStatus('正在连接服务器并扫描允许管理的目录…');
     setBusy(true);
     try {
@@ -331,6 +336,7 @@
       loadModels();
       if (appState.currentTab === 'plugins') appState.pluginController?.load(true);
       if (appState.currentTab === 'plugins' && !appState.pluginCommunity.loaded) appState.pluginCommunityController?.browse();
+      if (appState.currentTab === 'skills') appState.skillController?.load(true);
       setStatus('SSH 连接成功，已读取 ' + result.memoryCount + ' 个记忆文档和 ' + result.stickerCount + ' 张图片。');
       showToast('服务器连接成功。');
     } catch (error) {
@@ -481,6 +487,10 @@
     });
     appState.pluginController = window.OpenClawPluginController.create({
       $, $$, bridgeCall, state: appState.plugin, setStatus, showToast, reportError,
+      isConnected, connectionState: appState.connection
+    });
+    appState.skillController = window.OpenClawSkillController.create({
+      $, $$, bridgeCall, state: appState.skill, reportError, showToast,
       isConnected, connectionState: appState.connection
     });
     appState.pluginCommunityController = window.OpenClawPluginCommunityController.create({

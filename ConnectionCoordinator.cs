@@ -32,6 +32,7 @@ public sealed class ConnectionCoordinator : IDisposable
     public StickerService? Stickers { get; private set; }
     public ModelService? Models { get; private set; }
     public PluginService? Plugins { get; private set; }
+    public SkillService? Skills { get; private set; }
     public BackupCoordinator? Backup { get; private set; }
     public IReadOnlyList<RemoteFile> Files { get; private set; } = [];
     public bool IsConnected { get; private set; }
@@ -75,6 +76,11 @@ public sealed class ConnectionCoordinator : IDisposable
             () => settings.Connection,
             () => IsConnected,
             _setBusy);
+        Skills = new SkillService(new SkillServiceDependencies(
+            new RemoteSkillClient(_remote),
+            () => settings.Connection,
+            () => IsConnected,
+            _setBusy));
         Backup = new BackupCoordinator(
             _snapshotClient,
             SettingsRepository.DefaultBackupDirectory,

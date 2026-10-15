@@ -9,6 +9,9 @@
   <link rel="stylesheet" href="styles-overrides.css">
   <link rel="stylesheet" href="plugins.css">
   <link rel="stylesheet" href="plugin-community.css">
+  <link rel="stylesheet" href="plugin-categories.css">
+  <link rel="stylesheet" href="dependencies.css">
+  <link rel="stylesheet" href="skills.css">
   <script src="bridge-contract.generated.js" defer></script>
   <script src="bridge.js" defer></script>
   <script src="theme.js" defer></script>
@@ -17,6 +20,7 @@
   <script src="memory-state.js" defer></script>
   <script src="model-state.js" defer></script>
   <script src="plugin-state.js" defer></script>
+  <script src="skill-state.js" defer></script>
   <script src="plugin-community-state.js" defer></script>
   <script src="sticker-state.js" defer></script>
   <script src="backup-state.js" defer></script>
@@ -25,7 +29,12 @@
   <script src="virtual-list.js" defer></script>
   <script src="memory-controller.js" defer></script>
   <script src="model-controller.js" defer></script>
+  <script src="plugin-category-utils.js" defer></script>
   <script src="plugin-view.js" defer></script>
+  <script src="dependency-view.js" defer></script>
+  <script src="dependency-controller.js" defer></script>
+  <script src="skill-view.js" defer></script>
+  <script src="skill-controller.js" defer></script>
   <script src="plugin-community-view.js" defer></script>
   <script src="plugin-controller.js" defer></script>
   <script src="plugin-community-controller.js" defer></script>
@@ -56,6 +65,8 @@
         <button class="nav-tab" data-tab="models"><span class="nav-shape"></span><span class="nav-label">模型</span></button>
         <button class="nav-tab" data-tab="stickers"><span class="nav-shape"></span><span class="nav-label">表情包</span></button>
         <button class="nav-tab" data-tab="plugins"><span class="nav-shape"></span><span class="nav-label">插件</span></button>
+        <button class="nav-tab" data-tab="skills"><span class="nav-shape"></span><span class="nav-label">技能</span></button>
+        <button class="nav-tab" data-tab="dependencies"><span class="nav-shape"></span><span class="nav-label">依赖</span></button>
         <button class="nav-tab" data-tab="themes"><span class="nav-shape"></span><span class="nav-label">主题</span></button>
         <button class="nav-tab" data-tab="settings"><span class="nav-shape"></span><span class="nav-label">设置</span></button>
         <div class="nav-indicator"></div>
@@ -73,6 +84,7 @@
           <span><small>预计剩余</small><b id="backupEta">计算中</b></span>
         </div>
       </section>
+      <div class="plugin-inspection-status" id="pluginInspectionStatus" role="status" aria-live="polite" hidden></div>
     </nav>
 
     <main class="page-stack">
@@ -127,13 +139,18 @@
         <div class="plugin-safety-note panel glass"><span class="plugin-safety-icon">!</span><p><strong>第三方插件会在服务器上运行代码。</strong>检查来源和详情中的能力声明后再启用；安装默认保持禁用，能力授权需单独勾选。</p></div>
         <div class="plugin-management-grid">
           <article class="panel glass plugin-installed-panel">
-            <div class="side-title"><strong>已安装插件</strong><span id="pluginListCount">0</span></div>
+            <div class="side-title"><strong>已安装插件</strong><div class="plugin-installed-toolbar"><label class="plugin-category-control" title="按插件分类筛选"><span aria-hidden="true">▱</span><select id="pluginCategoryFilter" class="plugin-category-select" aria-label="按已安装插件分类筛选"><option value="">所有类别</option></select></label><span id="pluginListCount">0</span></div></div>
             <label class="search-box"><span>⌕</span><input id="pluginFilter" type="search" placeholder="筛选名称、来源或状态" aria-label="筛选已安装插件"></label>
             <div class="plugin-list empty-state" id="pluginList">连接服务器后读取插件清单</div>
           </article>
           <article class="panel glass plugin-discovery-panel">
             <div class="panel-heading"><div><div class="eyebrow">OFFICIAL COMMUNITY · CLAWHUB</div><h3>插件社区</h3></div><div class="plugin-community-toolbar"><span class="plugin-community-count"><b id="pluginCommunityCount">0</b> 个结果</span><select id="pluginCommunitySort" class="filter-select" aria-label="插件排序"><option value="recommended">推荐</option><option value="downloads">下载量</option><option value="updated">最近更新</option></select><button class="button button-quiet" id="pluginCommunityRefreshButton" type="button">⟳ 刷新</button></div></div>
-            <form id="pluginSearchForm" class="plugin-search-form"><label class="search-box"><span>⌕</span><input id="pluginSearchInput" type="search" placeholder="搜索 ClawHub 插件" aria-label="搜索 ClawHub 插件"></label><button class="button button-quiet" id="pluginSearchButton" type="submit" disabled>搜索</button></form>
+            <form id="pluginSearchForm" class="plugin-search-form"><label class="search-box"><span>⌕</span><input id="pluginSearchInput" type="search" placeholder="搜索 ClawHub 插件" aria-label="搜索 ClawHub 插件"></label><button class="button button-quiet" id="pluginSearchButton" type="submit" disabled>搜索</button><label class="plugin-category-control" title="按插件分类筛选"><span aria-hidden="true">▱</span><select id="pluginCommunityCategoryFilter" class="plugin-category-select" aria-label="按 ClawHub 插件分类筛选"><option value="">所有类别</option></select></label></form>
+            <section class="plugin-community-hot" aria-labelledby="pluginCommunityHotTitle">
+              <div class="plugin-community-hot-heading"><div><div class="eyebrow">POPULAR ON CLAWHUB</div><h4 id="pluginCommunityHotTitle">热门插件</h4></div><label class="plugin-hot-period-label">下载周期<select id="pluginCommunityHotPeriod" class="filter-select" aria-label="热门插件下载周期"><option value="all">累计下载</option><option value="day">当日下载</option><option value="week">当周下载</option><option value="month">当月下载</option></select></label></div>
+              <p class="plugin-community-hot-status muted small" id="pluginCommunityHotStatus" role="status" aria-live="polite">正在读取 ClawHub 热门插件…</p>
+              <div class="plugin-community-hot-list" id="pluginCommunityHotList"></div>
+            </section>
             <div class="plugin-search-status muted small" id="pluginSearchStatus">正在读取 ClawHub 插件目录…</div>
             <div class="plugin-search-results" id="pluginSearchResults"><div class="empty-state">插件社区结果会显示在这里</div></div>
             <button class="button button-quiet plugin-community-more" id="pluginCommunityLoadMoreButton" type="button" hidden>加载更多</button>
@@ -141,6 +158,32 @@
           </article>
         </div>
         <div class="plugin-page-status" id="pluginStatus" role="status" aria-live="polite">连接服务器后读取插件状态。</div>
+      </section>
+
+      <section class="page page-skills" id="page-skills">
+        <div class="section-heading">
+          <div><div class="eyebrow">SKILL MANAGEMENT</div><h2>技能管理</h2><p>读取服务器当前技能，查看 OpenClaw 详情，并远程更新 ClawHub 跟踪的技能。</p></div>
+          <div class="button-row"><span class="plugin-count-badge"><strong id="skillCount">0</strong> 项技能</span><button class="button button-primary" id="skillRefreshButton" type="button" disabled>⟳ 刷新清单</button></div>
+        </div>
+        <article class="panel glass skill-panel">
+          <div class="side-title"><strong>当前技能</strong><span id="skillVisibleCount">0</span></div>
+          <label class="search-box"><span>⌕</span><input id="skillFilter" type="search" placeholder="筛选名称、来源、版本或状态" aria-label="筛选当前技能"></label>
+          <div class="plugin-page-status" id="skillStatus" role="status" aria-live="polite">连接服务器后读取当前技能。</div>
+          <div class="plugin-list skill-list empty-state" id="skillList">连接服务器后读取技能清单</div>
+        </article>
+      </section>
+
+      <section class="page page-dependencies" id="page-dependencies">
+        <div class="section-heading">
+          <div><div class="eyebrow">PLUGIN DEPENDENCIES</div><h2>依赖管理</h2><p>查看服务器上已安装插件声明的运行依赖；更新操作会更新所属插件包及其依赖。</p></div>
+          <div class="button-row"><span class="plugin-count-badge"><strong id="dependencyCount">0</strong> 项依赖</span><button class="button button-primary" id="dependencyRefreshButton" type="button" disabled>⟳ 刷新清单</button></div>
+        </div>
+        <article class="panel glass dependency-panel">
+          <div class="side-title"><strong>当前依赖</strong><span id="dependencyVisibleCount">0</span></div>
+          <div class="dependencies-toolbar"><label class="search-box"><span>⌕</span><input id="dependencyFilter" type="search" placeholder="筛选依赖或所属插件" aria-label="筛选当前依赖"></label></div>
+          <div class="plugin-page-status" id="dependencyStatus" role="status" aria-live="polite">连接服务器后读取当前依赖。</div>
+          <div class="plugin-list dependency-list empty-state" id="dependencyList">连接服务器后读取插件依赖清单</div>
+        </article>
       </section>
 
       <section class="page" id="page-themes">
@@ -193,6 +236,18 @@
 
       <dialog class="modal plugin-detail-dialog" id="pluginDetailDialog">
         <form method="dialog"><div class="modal-head"><div><div class="eyebrow">PLUGIN INSPECTION</div><h3 id="pluginDetailTitle">插件详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted">OpenClaw 的静态检查结果；默认不会导入插件运行时代码。</p><pre id="pluginDetailBody" class="plugin-json"></pre><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-detail-dialog" id="dependencyDetailDialog">
+        <form method="dialog"><div class="modal-head"><div><div class="eyebrow">DEPENDENCY DETAILS</div><h3 id="dependencyDetailTitle">依赖详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted">依赖声明与所属插件的远端静态检查结果。</p><pre id="dependencyDetailBody" class="plugin-json"></pre><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-detail-dialog" id="skillDetailDialog">
+        <form method="dialog"><div class="modal-head"><div><div class="eyebrow">OPENCLAW SKILL</div><h3 id="skillDetailTitle">技能详情</h3></div><button class="icon-button" type="submit" value="close" aria-label="关闭">×</button></div><p class="muted">服务器返回的技能检查详情。</p><pre id="skillDetailBody" class="plugin-json"></pre><div class="modal-actions"><button class="button button-quiet" type="submit" value="close">关闭</button></div></form>
+      </dialog>
+
+      <dialog class="modal plugin-action-dialog skill-update-dialog" id="skillUpdateDialog">
+        <form id="skillUpdateForm"><div class="modal-head"><div><div class="eyebrow">CONFIRM SKILL UPDATE</div><h3>远程更新技能</h3></div><button class="icon-button" id="skillUpdateCloseButton" type="button" aria-label="关闭">×</button></div><p class="muted">将运行 OpenClaw 的技能更新命令。只有由 ClawHub 跟踪的技能可更新；不会使用强制覆盖参数。</p><div class="skill-update-target" id="skillUpdateTarget"></div><div class="modal-actions"><button class="button button-quiet" id="skillUpdateCancelButton" type="button">取消</button><button class="button button-primary" type="submit">确认更新</button></div></form>
       </dialog>
 
       <dialog class="modal plugin-community-detail-dialog" id="pluginCommunityDetailDialog">

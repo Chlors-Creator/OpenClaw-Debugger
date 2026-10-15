@@ -8,6 +8,7 @@
         loaded: false,
         loading: false,
         mutating: false,
+        loadError: '',
         loadGeneration: 0,
         loadController: null
       };

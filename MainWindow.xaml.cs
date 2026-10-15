@@ -133,6 +133,7 @@ public partial class MainWindow : Window
         new StickerBridgeHandler(() => _connection.Stickers).Register(router);
         new ModelBridgeHandler(() => _connection.Models).Register(router);
         new PluginBridgeHandler(() => _connection.Plugins).Register(router);
+        new SkillBridgeHandler(() => _connection.Skills).Register(router);
         new PluginCommunityBridgeHandler(_pluginCommunity).Register(router);
         new BackupBridgeHandler(() => _connection.Backup, () => _settings.Connection, OpenFolder).Register(router);
         new WindowBridgeHandler(

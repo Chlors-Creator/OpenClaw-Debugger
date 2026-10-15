@@ -1,22 +1,30 @@
 (function () {
   'use strict';
+  const HOT_PERIODS = new Set(['all', 'day', 'week', 'month']);
 
   function create(deps) {
     const controller = { ...deps, view: window.OpenClawPluginCommunityView };
-    controller.browse = forceRefresh => loadCatalog(controller, { forceRefresh: Boolean(forceRefresh) });
+    controller.browse = forceRefresh => {
+      if (!controller.state.hotLoaded || forceRefresh) loadHot(controller, { forceRefresh: Boolean(forceRefresh) });
+      return loadCatalog(controller, { forceRefresh: Boolean(forceRefresh) });
+    };
     controller.search = () => search(controller);
     controller.refresh = () => refresh(controller);
     controller.loadMore = () => loadMore(controller);
     controller.setSort = value => setSort(controller, value);
+    controller.setHotPeriod = value => setHotPeriod(controller, value);
     controller.render = () => controller.view.renderResults(controller);
-    controller.handleAction = (action, index) => handleAction(controller, action, index);
+    controller.handleAction = (action, index, source) => handleAction(controller, { action, index, source });
     controller.checkSecurity = item => checkSecurity(controller, item);
     controller.syncButtons = () => syncButtons(controller);
     controller.canInstall = () => controller.pluginController.canInstall();
     controller.installSpec = item => controller.view.installSpec(item);
     controller.$('#pluginSearchInput').addEventListener('input', controller.syncButtons);
+    controller.$('#pluginCommunityCategoryFilter').addEventListener('change', controller.render);
     controller.$('#pluginCommunitySort').addEventListener('change', event => controller.setSort(event.target.value));
+    controller.$('#pluginCommunityHotPeriod').addEventListener('change', event => controller.setHotPeriod(event.target.value));
     controller.view.renderResults(controller);
+    controller.view.renderHot(controller);
     syncButtons(controller);
     return controller;
   }
@@ -36,9 +44,51 @@
 
   function refresh(controller) {
     const query = controller.state.query;
-    return query
-      ? loadCatalog(controller, { query, forceRefresh: true })
-      : controller.browse(true);
+    loadHot(controller, { forceRefresh: true });
+    return loadCatalog(controller, query
+      ? { query, forceRefresh: true }
+      : { forceRefresh: true });
+  }
+
+  function setHotPeriod(controller, period) {
+    if (!HOT_PERIODS.has(period)) throw new Error('不支持的热门插件下载周期：' + period);
+    controller.state.hotPeriod = period;
+    controller.view.renderHot(controller);
+  }
+
+  async function loadHot(controller, options) {
+    const state = controller.state;
+    const generation = ++state.hotGeneration;
+    state.hotRequestController?.abort();
+    const operation = new AbortController();
+    state.hotRequestController = operation;
+    state.hotLoading = true;
+    state.hotError = '';
+    if (options.forceRefresh) state.hotItems = [];
+    controller.view.renderHot(controller);
+    syncButtons(controller);
+    try {
+      const response = await controller.bridgeCall('browsePluginCommunity', {
+        sort: 'downloads', cursor: '', forceRefresh: Boolean(options.forceRefresh)
+      }, { signal: operation.signal });
+      if (generation !== state.hotGeneration) return;
+      const items = controller.view.records(response);
+      if (items === null) throw new TypeError('ClawHub 热门插件响应中没有可识别的插件列表。');
+      state.hotItems = items.slice(0, 3);
+      state.hotLoaded = true;
+    } catch (error) {
+      if (error && error.name === 'AbortError') return;
+      if (generation !== state.hotGeneration) return;
+      state.hotError = String(error && error.message || error);
+      state.hotLoaded = true;
+      controller.reportError(error);
+    } finally {
+      if (generation !== state.hotGeneration) return;
+      state.hotLoading = false;
+      state.hotRequestController = null;
+      controller.view.renderHot(controller);
+      syncButtons(controller);
+    }
   }
 
   function loadMore(controller) {
@@ -126,15 +176,16 @@
     syncButtons(controller);
   }
 
-  function handleAction(controller, action, index) {
-    const item = controller.state.items[index];
+  function handleAction(controller, options) {
+    const items = options.source === 'hot' ? controller.state.hotItems : controller.state.items;
+    const item = items[options.index];
     if (!item) return;
-    if (action === 'detail') openDetails(controller, item);
-    if (action === 'security') {
+    if (options.action === 'detail') openDetails(controller, item);
+    if (options.action === 'security') {
       openDetails(controller, item);
       controller.checkSecurity(item);
     }
-    if (action === 'install') controller.pluginController.installSpec(controller.view.installSpec(item));
+    if (options.action === 'install') controller.pluginController.installSpec(controller.view.installSpec(item));
   }
 
   function openDetails(controller, item) {
@@ -195,14 +246,15 @@
   function syncButtons(controller) {
     const state = controller.state;
     const busy = state.loading || controller.connectionState.busy;
-    controller.$('#pluginCommunityRefreshButton').disabled = state.loading;
+    controller.$('#pluginCommunityRefreshButton').disabled = state.loading || state.hotLoading;
     controller.$('#pluginCommunitySort').disabled = state.loading;
     controller.$('#pluginSearchButton').disabled = state.loading || !controller.$('#pluginSearchInput').value.trim();
-    controller.$$('#pluginSearchResults [data-community-action="install"]').forEach(button => {
+    controller.$$('#pluginSearchResults [data-community-action="install"], #pluginCommunityHotList [data-community-action="install"]').forEach(button => {
       button.disabled = busy || !controller.canInstall();
     });
-    controller.$$('#pluginSearchResults [data-community-action="security"]').forEach(button => {
-      const item = state.items[Number(button.dataset.communityIndex)];
+    controller.$$('#pluginSearchResults [data-community-action="security"], #pluginCommunityHotList [data-community-action="security"]').forEach(button => {
+      const items = button.dataset.communitySource === 'hot' ? state.hotItems : state.items;
+      const item = items[Number(button.dataset.communityIndex)];
       button.disabled = state.securityLoading || !controller.view.packageName(item) || !controller.view.version(item);
     });
     const selected = state.selectedItem;

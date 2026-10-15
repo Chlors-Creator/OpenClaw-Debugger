@@ -149,6 +149,35 @@ internal static class BridgeContractGenerated
                 {
                 }
             },
+            ["getSkills"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "skill",
+                TimeoutMs = 180000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                }
+            },
+            ["inspectSkill"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "skill",
+                TimeoutMs = 180000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["skillName"] = "string",
+                }
+            },
+            ["updateSkill"] = new BridgeCommandDefinition
+            {
+                Mode = "remote",
+                Domain = "skill",
+                TimeoutMs = 1080000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["skillName"] = "string",
+                }
+            },
             ["searchPlugins"] = new BridgeCommandDefinition
             {
                 Mode = "remote",

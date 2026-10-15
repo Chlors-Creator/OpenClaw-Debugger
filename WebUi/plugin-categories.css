@@ -1,0 +1,79 @@
+.plugin-installed-toolbar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.plugin-category-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--accent2);
+}
+
+.plugin-category-select {
+  width: auto;
+  min-width: 116px;
+  height: 34px;
+  appearance: none;
+  padding: 0 26px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: 0;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  font: 10px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+.plugin-category-control::after {
+  position: absolute;
+  right: 8px;
+  content: '⌄';
+  color: var(--accent2);
+  pointer-events: none;
+}
+
+.plugin-category-select:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.plugin-category-select:disabled {
+  opacity: .68;
+  cursor: not-allowed;
+}
+
+.plugin-category-select option {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.plugin-search-form .plugin-category-control {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+  .plugin-installed-toolbar {
+    gap: 5px;
+  }
+
+  .plugin-category-select {
+    min-width: 98px;
+  }
+
+  .plugin-search-form {
+    flex-wrap: wrap;
+  }
+
+  .plugin-search-form .search-box {
+    flex-basis: 100%;
+  }
+
+  .plugin-search-form .plugin-category-control {
+    margin-left: auto;
+  }
+}

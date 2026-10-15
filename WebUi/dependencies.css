@@ -1,0 +1,13 @@
+.page-dependencies .section-heading{align-items:center}
+.dependency-panel{min-width:0;padding:15px}
+.dependencies-toolbar{display:flex;gap:8px;margin-bottom:8px}
+.dependencies-toolbar .search-box{flex:1}
+.dependency-list{max-height:none;min-height:230px}
+.dependency-card{border-left:3px solid color-mix(in srgb,var(--palette-accent) 60%,var(--line))}
+.dependency-card.dependency-missing{border-left-color:var(--palette-danger,var(--danger))}
+.dependency-card.dependency-missing .plugin-status-tag{color:var(--palette-danger,var(--danger));border-color:color-mix(in srgb,var(--palette-danger,var(--danger)) 42%,var(--line))}
+.dependency-card .plugin-card-heading strong{overflow-wrap:anywhere}
+.dependency-spec{overflow-wrap:anywhere;white-space:normal}
+.dependency-path{display:block;margin-top:4px;color:var(--muted2);font-size:9px;overflow-wrap:anywhere}
+.dependency-card .plugin-card-actions{flex-wrap:wrap}
+@media(max-width:620px){.page-dependencies .section-heading{align-items:flex-start;flex-direction:column}.page-dependencies .section-heading>.button-row{width:100%;justify-content:space-between}}

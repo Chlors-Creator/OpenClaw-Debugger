@@ -63,6 +63,10 @@
     return scalar(firstValue(item, ['description', 'summary', 'blurb', 'catalog.summary']));
   }
 
+  function categories(item) {
+    return window.OpenClawPluginCategoryUtils.values(item);
+  }
+
   function count(item, keys) {
     const value = firstValue(item, keys);
     return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '—';
@@ -81,6 +85,7 @@
     button.className = 'button button-quiet';
     button.dataset.communityAction = options.action;
     button.dataset.communityIndex = String(options.index);
+    button.dataset.communitySource = options.source;
     button.textContent = options.label;
     button.disabled = options.disabled;
     return button;
@@ -89,20 +94,22 @@
   function appendActions(controller, options) {
     const actions = document.createElement('div');
     actions.className = 'plugin-community-actions';
-    actions.appendChild(actionButton({ label: '详情', action: 'detail', index: options.index, disabled: false }));
-    const item = controller.state.items[options.index];
+    actions.appendChild(actionButton({ label: '详情', action: 'detail', index: options.index, source: options.source, disabled: false }));
+    const item = options.item;
     const missingSecurityVersion = !packageName(item) || !version(item);
-    actions.appendChild(actionButton({ label: '安全报告', action: 'security', index: options.index, disabled: controller.state.securityLoading || missingSecurityVersion }));
-    actions.appendChild(actionButton({ label: '下载并部署', action: 'install', index: options.index, disabled: !controller.canInstall() }));
+    actions.appendChild(actionButton({ label: '安全报告', action: 'security', index: options.index, source: options.source, disabled: controller.state.securityLoading || missingSecurityVersion }));
+    actions.appendChild(actionButton({ label: '下载并部署', action: 'install', index: options.index, source: options.source, disabled: !controller.canInstall() }));
     options.card.appendChild(actions);
   }
 
-  function renderCard(controller, item, index) {
+  function renderCard(controller, options) {
+    const { item, index, source = 'catalog', rank } = options;
     const name = packageName(item);
     const card = document.createElement('article');
     card.className = 'plugin-search-card plugin-community-card';
     const header = document.createElement('div');
     header.className = 'plugin-card-heading';
+    if (rank) header.appendChild(textElement('span', 'plugin-hot-rank', String(rank)));
     header.appendChild(textElement('strong', '', displayName(item)));
     const badge = textElement('span', 'plugin-status-tag', firstValue(item, ['isOfficial', 'official']) === true ? '官方标记' : '社区发布');
     header.appendChild(badge);
@@ -111,7 +118,8 @@
     card.appendChild(textElement('small', 'plugin-meta', metaLine(item)));
     card.appendChild(textElement('p', 'plugin-description', description(item) || 'ClawHub 暂未提供插件简介。'));
     card.appendChild(textElement('div', 'plugin-community-metrics', '★ ' + count(item, ['statsStars', 'stats.stars', 'stars']) + '　↓ ' + count(item, ['statsDownloads', 'stats.downloads', 'downloads'])));
-    appendActions(controller, { card, index });
+    if (source === 'hot') card.classList.add('plugin-hot-card');
+    appendActions(controller, { card, index, item, source });
     return card;
   }
 
@@ -119,7 +127,7 @@
     const values = [
       firstValue(item, ['owner.handle', 'publisher.handle', 'ownerHandle', 'publisherName']),
       version(item),
-      firstValue(item, ['category', 'categories.0']),
+      categories(item).join(', '),
       firstValue(item, ['family'])
     ].map(scalar).filter(Boolean);
     return values.length ? values.join(' · ') : 'ClawHub 插件';
@@ -132,23 +140,67 @@
     more.disabled = controller.state.loading || !controller.state.nextCursor;
     container.replaceChildren();
     const items = controller.state.items;
-    controller.$('#pluginCommunityCount').textContent = String(items.length);
+    const categoryFilter = controller.$('#pluginCommunityCategoryFilter');
+    window.OpenClawPluginCategoryUtils.updateFilter(categoryFilter, items);
+    const selectedCategory = categoryFilter.value;
+    const visible = items.map((item, index) => ({ item, index }))
+      .filter(entry => window.OpenClawPluginCategoryUtils.matches(entry.item, selectedCategory));
+    controller.$('#pluginCommunityCount').textContent = String(visible.length);
     if (controller.state.catalogError) {
       container.replaceChildren(textElement('p', 'plugin-format-error', 'ClawHub 目录请求失败：' + controller.state.catalogError));
       container.classList.remove('empty-state');
       return;
     }
-    container.classList.toggle('empty-state', items.length === 0 && !controller.state.catalogFormatError);
+    container.classList.toggle('empty-state', visible.length === 0 && !controller.state.catalogFormatError);
     if (controller.state.catalogFormatError) {
       container.replaceChildren(textElement('p', 'plugin-format-error', 'ClawHub 返回的 JSON 中没有可识别的插件列表。原始结果：'));
       container.appendChild(textElement('pre', 'plugin-json plugin-raw-list', JSON.stringify(controller.state.catalogRaw, null, 2)));
       return;
     }
-    if (!items.length) {
-      container.textContent = controller.state.loading ? '正在读取 ClawHub 插件…' : '没有插件结果。';
+    if (!visible.length) {
+      container.textContent = controller.state.loading ? '正在读取 ClawHub 插件…' : selectedCategory ? '此分类下没有插件结果。' : '没有插件结果。';
     } else {
-      items.forEach((item, index) => container.appendChild(renderCard(controller, item, index)));
+      visible.forEach(entry => container.appendChild(renderCard(controller, { item: entry.item, index: entry.index, source: 'catalog' })));
     }
+  }
+
+  function renderHot(controller) {
+    const state = controller.state;
+    const status = controller.$('#pluginCommunityHotStatus');
+    const container = controller.$('#pluginCommunityHotList');
+    container.replaceChildren();
+    if (state.hotPeriod !== 'all') {
+      status.textContent = 'ClawHub 公共插件接口暂未提供当日、当周或当月下载统计；请选择“累计下载”查看当前可用榜单。';
+      if (state.hotError) status.textContent += ' 累计榜读取失败：' + state.hotError;
+      container.classList.add('empty-state');
+      return;
+    }
+    if (!state.hotLoaded) {
+      status.textContent = '正在读取 ClawHub 累计下载排行…';
+      container.classList.add('empty-state');
+      container.textContent = status.textContent;
+      return;
+    }
+    if (state.hotError) {
+      status.textContent = 'ClawHub 热门插件加载失败：' + state.hotError;
+      container.classList.add('empty-state');
+      container.appendChild(textElement('p', 'plugin-format-error', status.textContent));
+      return;
+    }
+    container.classList.toggle('empty-state', state.hotItems.length === 0);
+    if (state.hotLoading && !state.hotItems.length) {
+      status.textContent = '正在读取 ClawHub 累计下载排行…';
+      container.textContent = status.textContent;
+      return;
+    }
+    status.textContent = '按 ClawHub 累计下载量排序 · 展示前 ' + state.hotItems.length + ' 个';
+    if (!state.hotItems.length) {
+      container.textContent = 'ClawHub 暂无可展示的热门插件。';
+      return;
+    }
+    state.hotItems.forEach((item, index) => {
+      container.appendChild(renderCard(controller, { item, index, source: 'hot', rank: index + 1 }));
+    });
   }
 
   function metadataRows(item) {
@@ -158,7 +210,7 @@
       ['发布者', scalar(firstValue(item, ['owner.handle', 'publisher.handle', 'ownerHandle', 'publisherName']))],
       ['版本', version(item)],
       ['类型', scalar(firstValue(item, ['family']))],
-      ['分类', scalar(firstValue(item, ['category', 'categories.0']))],
+      ['分类', categories(item).join(', ')],
       ['许可证', scalar(firstValue(item, ['license', 'licenseId']))],
       ['来源仓库', scalar(firstValue(item, ['sourceRepo', 'repository', 'source.repository']))],
       ['ClawHub 星标', count(item, ['statsStars', 'stats.stars', 'stars'])],
@@ -214,6 +266,7 @@
     version,
     installSpec,
     renderResults,
+    renderHot,
     renderDetails,
     setSecurity
   };
