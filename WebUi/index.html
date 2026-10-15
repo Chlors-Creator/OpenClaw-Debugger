@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles-overrides.css">
   <link rel="stylesheet" href="plugins.css">
   <link rel="stylesheet" href="plugin-community.css">
+  <link rel="stylesheet" href="connection-status.css">
   <link rel="stylesheet" href="plugin-categories.css">
   <link rel="stylesheet" href="dependencies.css">
   <link rel="stylesheet" href="skills.css">
@@ -59,7 +60,7 @@
   <div class="app-shell">
     <header class="topbar glass">
       <div class="brand-lockup"><div class="brand-icon">✦</div><div><div class="eyebrow">LOCAL OPERATIONS CONSOLE</div><h1>OpenClaw <span>Debugger</span></h1></div></div>
-      <div class="connection-chip"><span class="pulse-dot"></span><span id="connectionStatus">尚未连接</span></div>
+      <div class="connection-chip"><span class="pulse-dot"></span><span id="connectionStatus">尚未连接</span><span id="connectionStatusSeparator" class="connection-status-separator" aria-hidden="true" hidden>·</span><span id="modelListStatus" class="connection-model-status" aria-live="polite" hidden></span></div>
       <div class="top-actions">
         <button class="button button-quiet" id="refreshButton" disabled>⟳ <span>重新扫描</span></button>
         <button class="button button-quiet" id="backupButton" disabled>▣ <span>备份服务器</span></button><button class="button button-danger backup-cancel-button" id="cancelBackupButton" aria-hidden="true" disabled>✕ <span>取消备份</span></button>
@@ -113,7 +114,7 @@
       </section>
 
       <section class="page" id="page-memory">
-        <div class="section-heading"><div><div class="eyebrow">MEMORY FILES</div><h2>记忆管理</h2><p>选择 Markdown 文件查看内容。保存前会展示差异，并检查服务器版本。</p></div><div class="section-badge"><span id="memoryPageCount">0</span> 个可编辑文件</div></div>
+        <div class="section-heading"><div><div class="eyebrow">MEMORY FILES</div><h2>记忆管理</h2><p>选择 Markdown 文件查看内容。保存前会展示差异，并检查服务器版本。</p></div><span class="plugin-count-badge"><strong id="memoryPageCount">0</strong> 个可编辑文件</span></div>
         <div class="workspace-layout">
           <aside class="file-sidebar panel glass"><div class="side-title"><strong>工作区文件</strong><span id="memoryListCount">0</span></div><label class="search-box"><span>⌕</span><input id="memorySearch" type="search" placeholder="筛选文件"></label><div id="memoryList" class="file-list empty-state">连接服务器后读取文件</div></aside>
           <article class="editor-panel panel glass"><div class="editor-toolbar"><div><div class="eyebrow">REMOTE DOCUMENT</div><h3 id="memoryTitle">选择左侧文件</h3><div class="muted small" id="memoryInfo">内容会在读取后显示。</div></div><div class="button-row"><button class="button button-quiet" id="editMemoryButton" disabled>编辑</button><button class="button button-quiet" id="cancelMemoryButton" disabled>放弃</button><button class="button button-primary" id="saveMemoryButton" disabled>保存修改</button></div></div><textarea id="memoryEditor" class="code-editor" spellcheck="false" placeholder="选择文件后，内容会显示在这里。" readonly></textarea><div class="editor-footer"><span id="memoryEditorState">只读预览</span><span>UTF-8 · Markdown</span></div></article>
@@ -132,7 +133,7 @@
       </section>
 
       <section class="page" id="page-stickers">
-        <div class="section-heading"><div><div class="eyebrow">STICKER LIBRARY</div><h2>表情包与标签</h2><p>支持 GIF 动图和标签编辑。权重默认 1；设为 0 可停用。她会先筛出语境合适的候选，再按权重占比随机选图。</p></div><div class="button-row"><button class="button button-quiet" id="rawStickerButton" disabled>高级编辑原始文件</button><button class="button button-primary" id="saveStickerButton" disabled>保存设置</button></div></div>
+        <div class="section-heading"><div><div class="eyebrow">STICKER LIBRARY</div><h2>表情包与标签</h2><p>支持 GIF 动图和标签编辑。权重默认 1；设为 0 可停用。她会先筛出语境合适的候选，再按权重占比随机选图。</p></div><div class="button-row"><span class="plugin-count-badge"><strong id="stickerPageCount">0</strong> 个表情包</span><button class="button button-quiet" id="rawStickerButton" disabled>高级编辑原始文件</button><button class="button button-primary" id="saveStickerButton" disabled>保存设置</button></div></div>
         <div class="upload-dropzone disabled" id="uploadDropzone" tabindex="0" role="region" aria-label="拖放或选择本地表情包上传">
           <input id="stickerFilesInput" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,image/png,image/jpeg,image/gif,image/webp,image/bmp" multiple hidden>
           <div class="upload-symbol">↑</div><div class="upload-copy"><strong>将本地表情包拖到这里</strong><small>支持 PNG、JPG、GIF、WEBP、BMP，单个文件最大 30 MB</small></div>

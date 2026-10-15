@@ -151,6 +151,7 @@
           state.editingEnabled = Boolean(result.stickerEditingEnabled);
           state.dirtyStickers = false;
           $('#stickerCount').textContent = result.stickerCount;
+          $('#stickerPageCount').textContent = result.stickerCount;
           $('#stickerListCount').textContent = state.rows.length;
           $('#saveStickerButton').disabled = !state.editingEnabled;
           renderStickerList(); setDirtyState();

@@ -113,6 +113,15 @@
     $('#statusText').classList.toggle('error-text', Boolean(isError));
   }
 
+  function setModelListStatus(text, isError) {
+    const visible = Boolean(text);
+    const status = $('#modelListStatus');
+    status.textContent = text || '';
+    status.hidden = !visible;
+    status.classList.toggle('error-text', Boolean(isError));
+    $('#connectionStatusSeparator').hidden = !visible;
+  }
+
   function showToast(text, isError) {
     const el = $('#toast');
     el.textContent = text;
@@ -153,9 +162,11 @@
     appState.skillController?.reset();
     $('.connection-chip').classList.remove('connected');
     $('#connectionStatus').textContent = '尚未连接';
+    setModelListStatus('');
     $('#memoryCount').textContent = '—';
     $('#stickerCount').textContent = '—';
     $('#memoryPageCount').textContent = '0';
+    $('#stickerPageCount').textContent = '0';
     $('#stickerListCount').textContent = '0';
     $('#memoryTitle').textContent = '选择左侧文件';
     $('#memoryInfo').textContent = '内容会在读取后显示。';
@@ -332,6 +343,7 @@
       $('#memoryCount').textContent = result.memoryCount;
       $('#stickerCount').textContent = result.stickerCount;
       $('#memoryPageCount').textContent = result.memoryCount;
+      $('#stickerPageCount').textContent = result.stickerCount;
       $('#stickerListCount').textContent = result.stickerCount;
       $('#rootPathsText').textContent = '工作区：' + result.workspacePath + ' · 表情包：' + result.stickersPath;
       $('#stickerStatus').textContent = result.stickerStatus;
@@ -345,7 +357,7 @@
       if (appState.currentTab === 'plugins' && !appState.pluginCommunity.loaded) appState.pluginCommunityController?.browse();
       if (appState.currentTab === 'skills') appState.skillController?.load(true);
       if (appState.currentTab === 'skills' && !appState.skillCommunity.loaded) appState.skillCommunityController?.browse();
-      setStatus('SSH 连接成功，已读取 ' + result.memoryCount + ' 个记忆文档和 ' + result.stickerCount + ' 张图片。');
+      setStatus('SSH 连接成功。');
       showToast('服务器连接成功。');
     } catch (error) {
       if (controller.signal.aborted || (error && error.name === 'AbortError')) return;
@@ -490,7 +502,7 @@
       getThumbnailObserver: () => appState.stickerThumbnailObserver, review
     });
     appState.modelController = window.OpenClawModelController.create({
-      $, bridgeCall, state: appState.model, setStatus, showToast, reportError, setBusy,
+      $, bridgeCall, state: appState.model, setStatus, setModelListStatus, showToast, reportError, setBusy,
       isConnected: () => $('.connection-chip').classList.contains('connected')
     });
     appState.pluginController = window.OpenClawPluginController.create({

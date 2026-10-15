@@ -2,7 +2,7 @@
   'use strict';
 
   function create(deps) {
-    const { $, bridgeCall, state, setStatus, showToast, reportError, setBusy, isConnected } = deps;
+    const { $, bridgeCall, state, setStatus, setModelListStatus, showToast, reportError, setBusy, isConnected } = deps;
 
     function selectedModels(snapshot) {
       if (!snapshot) return [];
@@ -530,6 +530,7 @@
       const generation = ++state.refreshGeneration;
       state.refreshController = controller;
       state.refreshing = true;
+      setModelListStatus('正在更新模型清单…');
       syncButtons();
       render();
       let operation;
@@ -540,10 +541,10 @@
           applySnapshot(snapshot);
           render();
           if (snapshot && snapshot.refreshError) {
-            setStatus('模型缓存已加载，但最新清单更新失败，已保留缓存。', true);
+            setModelListStatus('模型清单更新失败，已保留缓存', true);
             showToast('模型清单更新失败，已保留缓存。', true);
           }
-          else setStatus('模型清单已更新。');
+          else setModelListStatus('模型清单已更新');
           return snapshot;
         } catch (error) {
           if (!controller.signal.aborted && !(error && error.name === 'AbortError')) {
@@ -551,10 +552,13 @@
             if (state.snapshot) {
               state.snapshot = { ...state.snapshot, refreshError: message };
               render();
-              setStatus('模型缓存已加载，但最新清单更新失败，已保留缓存。', true);
+              setModelListStatus('模型清单更新失败，已保留缓存', true);
               showToast('模型清单更新失败，已保留缓存。', true);
             }
-            else reportError(error);
+            else {
+              setModelListStatus('模型清单更新失败', true);
+              showToast(message, true);
+            }
           }
           return null;
         } finally {
@@ -583,6 +587,7 @@
       state.loadController = controller;
       state.loading = true;
       state.loadPhase = 'status';
+      setModelListStatus('正在读取模型清单…');
       scheduleLoadPhases();
       syncButtons();
       let operation;
@@ -593,13 +598,20 @@
           if (generation !== state.loadGeneration || controller.signal.aborted) return null;
           applySnapshot(snapshot);
           shouldRefresh = Boolean(snapshot && snapshot.refreshPending);
+          if (snapshot && snapshot.refreshError) setModelListStatus('模型清单更新失败，已保留缓存', true);
+          else if (shouldRefresh) setModelListStatus('正在更新模型清单…');
+          else setModelListStatus(state.cacheSource === 'remote' ? '模型清单已更新' : '模型清单已加载');
           state.loadPhase = 'organize';
           render();
           // 给“整理模型列表”阶段一个可见的渲染机会，再结束读取状态。
           await new Promise(resolve => window.setTimeout(resolve, 30));
           return snapshot;
         } catch (error) {
-          if (!controller.signal.aborted && !(error && error.name === 'AbortError')) reportError(error);
+          if (!controller.signal.aborted && !(error && error.name === 'AbortError')) {
+            const message = error && error.message ? error.message : String(error);
+            setModelListStatus('模型清单读取失败', true);
+            showToast(message, true);
+          }
           return null;
         } finally {
           clearLoadPhaseTimer();
@@ -887,6 +899,7 @@
       state.snapshot = null; state.snapshotCachedAt = 0; state.cacheSource = ''; state.cacheSavedAtUtc = null;
       state.loading = false; state.refreshing = false; state.loadPhase = ''; state.testing = false; state.saving = false; state.savingImage = false; state.adding = false;
       state.draggedId = null; state.pendingOrder = null;
+      setModelListStatus('');
       render();
     }
 

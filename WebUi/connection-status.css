@@ -1,0 +1,19 @@
+.connection-chip {
+  min-width: 0;
+}
+
+.connection-status-separator {
+  color: var(--muted2);
+}
+
+.connection-model-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-model-status.error-text {
+  color: #ffaaa2;
+}
