@@ -3,6 +3,8 @@
   "commands": {
     "initialize": { "mode": "local", "domain": "local", "timeoutMs": 15000, "payload": {} },
     "saveSettings": { "mode": "local", "domain": "settings", "timeoutMs": 30000, "payload": { "host": "string", "username": "string", "port": "integer", "workspacePath": "string", "stickersPath": "string", "backupRetentionCount": "integer" } },
+    "saveFirewallSettings": { "mode": "local", "domain": "settings", "timeoutMs": 30000, "payload": { "regionId": "string", "instanceId": "string", "autoSyncOnStartup": "boolean", "accessKeyId": "string", "accessKeySecret": "string" } },
+    "syncSshWhitelist": { "mode": "local", "domain": "security", "timeoutMs": 300000, "payload": {} },
     "setTheme": { "mode": "local", "domain": "settings", "timeoutMs": 15000, "payload": { "theme": "string" } },
     "connect": { "mode": "remote", "domain": "connection", "timeoutMs": 60000, "payload": {} },
     "disconnect": { "mode": "control", "domain": "connection", "timeoutMs": 30000, "payload": {} },

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="plugin-categories.css">
   <link rel="stylesheet" href="dependencies.css">
   <link rel="stylesheet" href="skills.css">
+  <link rel="stylesheet" href="firewall.css">
   <script src="bridge-contract.generated.js" defer></script>
   <script src="bridge.js" defer></script>
   <script src="theme.js" defer></script>
@@ -198,6 +199,24 @@
       <section class="page" id="page-settings">
         <div class="section-heading"><div><div class="eyebrow">LOCAL CONFIGURATION</div><h2>连接设置</h2><p>连接信息和本地隐私目录保存在仓库之外。</p></div></div>
         <div class="settings-layout"><article class="panel glass settings-panel"><div class="panel-heading"><div><div class="eyebrow">SSH CONNECTION</div><h3>服务器与路径</h3></div><span class="lock-mark">⌑</span></div><div class="form-grid"><label>服务器地址<input id="hostInput" autocomplete="off"></label><label>SSH 用户名<input id="usernameInput" autocomplete="off"></label><label>端口<input id="portInput" type="number" min="1" max="65535"></label><label>备份保留数量<input id="backupRetentionInput" type="number" min="1" max="30"></label><span></span><label class="wide-field">工作区路径<input id="workspaceInput" spellcheck="false"></label><label class="wide-field">表情包路径<input id="stickersInput" spellcheck="false"></label></div><div class="settings-actions"><button class="button button-primary" id="saveSettingsButton">保存设置</button><button class="button button-quiet" id="settingsConnectButton">保存并连接扫描</button><button class="button button-quiet" id="exportLogsButton">导出操作日志</button></div></article><article class="panel glass private-panel"><div class="panel-heading"><div><div class="eyebrow">PRIVATE STORAGE</div><h3>本机私密目录</h3></div><span class="lock-mark">◈</span></div><p class="muted">连接配置、DPAPI 回滚副本、操作日志和整机备份都保存在此目录，不会写入项目仓库。</p><div class="private-path" id="privatePath">—</div><button class="button button-quiet" id="openPrivateButton">在资源管理器中打开</button><div class="backup-location"><small>服务器快照目录</small><code id="backupPath">—</code></div><div class="warning-note">整机快照通过 SSH 读取根文件系统；需要服务器允许免密 sudo tar。</div></article></div>
+        <section class="panel glass firewall-panel">
+          <div class="panel-heading"><div><div class="eyebrow">ALIYUN SWAS FIREWALL</div><h3>SSH 公网 IP 白名单</h3></div><span class="lock-mark">⌑</span></div>
+          <p class="muted firewall-description">同步时会通过 HTTPS 检测本机公网 IPv4，并更新阿里云轻量服务器 TCP/22 白名单。固定地址 <strong>58.247.22.221/32</strong> 始终保留。</p>
+          <div class="firewall-form-grid">
+            <label>地域 ID<input id="firewallRegionInput" autocomplete="off" placeholder="例如 cn-hangzhou"></label>
+            <label>轻量服务器实例 ID<input id="firewallInstanceInput" autocomplete="off"></label>
+            <label>AccessKey ID<input id="firewallAccessKeyIdInput" autocomplete="off" placeholder="留空以保留已保存的密钥对"></label>
+            <label>AccessKey Secret<input id="firewallAccessKeySecretInput" type="password" autocomplete="new-password" placeholder="更换密钥时与 ID 一起填写"></label>
+          </div>
+          <label class="firewall-auto-sync"><input id="firewallAutoSyncInput" type="checkbox"><span><strong>启动时自动同步</strong><small>应用启动时先检测出口 IPv4 并更新白名单，再连接服务器。</small></span></label>
+          <div class="firewall-actions">
+            <button class="button button-quiet" id="saveFirewallSettingsButton" type="button">保存阿里云配置</button>
+            <button class="button button-primary" id="syncSshWhitelistButton" type="button">检测出口 IP 并同步白名单</button>
+            <span id="firewallCredentialStatus" role="status">尚未配置阿里云凭据</span>
+          </div>
+          <div class="firewall-sync-result" id="firewallSyncResult" role="status" aria-live="polite">尚未同步。</div>
+          <div class="warning-note firewall-warning">同步会先验证固定 IP 与当前出口 IP 已允许 SSH，再收紧或删除 TCP/22 的 0.0.0.0/0 全网开放规则；其他来源 IP 规则不会被删除。凭据保存在 Windows 凭据管理器。RAM 用户需要 ListFirewallRules、CreateFirewallRules、ModifyFirewallRule、DeleteFirewallRule 权限。</div>
+        </section>
       </section>
     </main>
 

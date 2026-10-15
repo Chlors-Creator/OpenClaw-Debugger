@@ -10,19 +10,22 @@ public sealed class ConnectionBridgeHandler
     private readonly Func<bool> _isConnected;
     private readonly Func<CancellationToken, Task<object>> _connect;
     private readonly Func<CancellationToken, Task<object>> _disconnect;
+    private readonly IAliyunAccessKeyVault _accessKeyVault;
 
     public ConnectionBridgeHandler(
         SettingsService settingsService,
         Func<UserSettings> settings,
         Func<bool> isConnected,
         Func<CancellationToken, Task<object>> connect,
-        Func<CancellationToken, Task<object>> disconnect)
+        Func<CancellationToken, Task<object>> disconnect,
+        IAliyunAccessKeyVault accessKeyVault)
     {
         _settingsService = settingsService;
         _settings = settings;
         _isConnected = isConnected;
         _connect = connect;
         _disconnect = disconnect;
+        _accessKeyVault = accessKeyVault;
     }
 
     public void Register(BridgeCommandRouter router)
@@ -33,6 +36,7 @@ public sealed class ConnectionBridgeHandler
             privateDirectory = _settings().PrivateDirectory,
             backupDirectory = SettingsRepository.DefaultBackupDirectory,
             themes = new[] { "Atri", "洛茜", "浅色" },
+            aliyunCredentialsConfigured = _accessKeyVault.IsConfigured,
             connected = _isConnected()
         }));
         router.Map("saveSettings", SaveSettingsAsync);

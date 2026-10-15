@@ -11,6 +11,8 @@
           stickersPath: '/home/user/.openclaw/workspace/stickers',
           backupRetentionCount: 5
         },
+        firewall: { regionId: '', instanceId: '', autoSyncOnStartup: false },
+        firewallCredentialsConfigured: false,
         themeController: null,
         saveController: null
       };

@@ -26,6 +26,26 @@
                                                           "backupRetentionCount":  "integer"
                                                       }
                                       },
+                     "saveFirewallSettings":  {
+                                                  "mode":  "local",
+                                                  "domain":  "settings",
+                                                  "timeoutMs":  30000,
+                                                  "payload":  {
+                                                                  "regionId":  "string",
+                                                                  "instanceId":  "string",
+                                                                  "autoSyncOnStartup":  "boolean",
+                                                                  "accessKeyId":  "string",
+                                                                  "accessKeySecret":  "string"
+                                                              }
+                                              },
+                     "syncSshWhitelist":  {
+                                              "mode":  "local",
+                                              "domain":  "security",
+                                              "timeoutMs":  300000,
+                                              "payload":  {
+
+                                                          }
+                                          },
                      "setTheme":  {
                                       "mode":  "local",
                                       "domain":  "settings",

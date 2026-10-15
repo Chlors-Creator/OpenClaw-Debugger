@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   function create(deps) {
-    const { $, bridgeCall, state, setStatus, showToast, reportError, connectServer } = deps;
+    const { $, bridgeCall, state, setStatus, showToast, reportError, connectServer, setBusy } = deps;
     function getConnectionSettings() {
       return {
         host: $('#hostInput').value.trim(),
@@ -35,7 +35,57 @@
         if (andConnect) await connectServer(); else showToast('连接设置已保存。');
       } catch (error) { reportError(error); }
     }
-    return { getConnectionSettings, fillSettings, saveConnectionSettings };
+    function getFirewallSettings() {
+      return {
+        regionId: $('#firewallRegionInput').value.trim(),
+        instanceId: $('#firewallInstanceInput').value.trim(),
+        autoSyncOnStartup: $('#firewallAutoSyncInput').checked,
+        accessKeyId: $('#firewallAccessKeyIdInput').value.trim(),
+        accessKeySecret: $('#firewallAccessKeySecretInput').value
+      };
+    }
+    function fillFirewallSettings(value, credentialsConfigured) {
+      state.firewall = value || state.firewall;
+      state.firewallCredentialsConfigured = Boolean(credentialsConfigured);
+      $('#firewallRegionInput').value = state.firewall.regionId || '';
+      $('#firewallInstanceInput').value = state.firewall.instanceId || '';
+      $('#firewallAutoSyncInput').checked = Boolean(state.firewall.autoSyncOnStartup);
+      $('#firewallAccessKeyIdInput').value = '';
+      $('#firewallAccessKeySecretInput').value = '';
+      $('#firewallCredentialStatus').textContent = state.firewallCredentialsConfigured
+        ? '阿里云密钥对已保存在 Windows 凭据管理器。'
+        : '尚未配置阿里云凭据。';
+    }
+    async function saveFirewallSettings() {
+      setBusy(true);
+      try {
+        const result = await bridgeCall('saveFirewallSettings', getFirewallSettings());
+        fillFirewallSettings(result.settings, result.aliyunCredentialsConfigured);
+        setStatus('阿里云地域、实例和密钥配置已保存到本机。');
+        showToast('阿里云配置已保存。');
+      } catch (error) { reportError(error); }
+      finally { setBusy(false); }
+    }
+    async function syncSshWhitelist() {
+      setBusy(true);
+      setStatus('正在检测本机公网 IPv4 并同步服务器 SSH 白名单…');
+      try {
+        const result = await bridgeCall('syncSshWhitelist', {}, { timeoutMs: 300000 });
+        const summary = `已同步：出口 IPv4 ${result.egressIpv4}/32；固定 IPv4 ${result.permanentIpv4}/32；规则新增 ${result.rulesCreated}、更新 ${result.rulesUpdated}、清理 ${result.rulesRemoved}。`;
+        $('#firewallSyncResult').textContent = summary;
+        setStatus(summary);
+        showToast('SSH 白名单已同步。');
+        return true;
+      } catch (error) {
+        reportError(error);
+        $('#firewallSyncResult').textContent = '同步失败：' + (error && error.message ? error.message : String(error));
+        return false;
+      } finally { setBusy(false); }
+    }
+    return {
+      getConnectionSettings, fillSettings, saveConnectionSettings,
+      fillFirewallSettings, saveFirewallSettings, syncSshWhitelist
+    };
   }
   window.OpenClawSettingsController = { create };
 })();

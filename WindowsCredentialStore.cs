@@ -82,6 +82,8 @@ internal static class WindowsCredentialStore
     public static string SshSecretTarget(ConnectionSettings settings) =>
         "OpenClawDebugger/SshSecret/" + StableKey(settings.Target + ":" + settings.Port);
 
+    public static string AliyunSwasAccessKeyTarget() => "OpenClawDebugger/AliyunSwasAccessKey";
+
     private static string StableKey(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 

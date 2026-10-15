@@ -38,6 +38,49 @@ public sealed class SettingsService
         await SettingsRepository.SaveAsync(settings);
     }
 
+    public async Task<bool> SaveFirewallSettingsAsync(
+        JsonElement payload,
+        UserSettings settings,
+        IAliyunAccessKeyVault accessKeyVault)
+    {
+        var incoming = payload.Deserialize<FirewallSettingsSubmission>(JsonOptions)
+            ?? throw new InvalidDataException("阿里云防火墙设置内容无效。");
+        var regionId = incoming.RegionId.Trim();
+        var instanceId = incoming.InstanceId.Trim();
+        AliyunFirewallSettingsValidator.ValidateTarget(regionId, instanceId);
+
+        var accessKeyId = incoming.AccessKeyId.Trim();
+        var secretIsBlank = string.IsNullOrWhiteSpace(incoming.AccessKeySecret);
+        if ((accessKeyId.Length == 0) != secretIsBlank)
+            throw new InvalidDataException("更换阿里云密钥时，AccessKey ID 和 Secret 必须同时填写。");
+        if (accessKeyId.Length > 256)
+            throw new InvalidDataException("阿里云 AccessKey ID 长度无效。");
+        if (accessKeyId.Length == 0 && !accessKeyVault.IsConfigured)
+            throw new InvalidDataException("请填写阿里云 AccessKey ID 和 Secret，以便保存到 Windows 凭据管理器。");
+        if (accessKeyId.Length > 0)
+            accessKeyVault.Save(new AliyunAccessKeyPair
+            {
+                AccessKeyId = accessKeyId,
+                AccessKeySecret = incoming.AccessKeySecret
+            });
+
+        var previous = settings.Firewall ?? new AliyunFirewallSettings();
+        var sameTarget = string.Equals(previous.RegionId, regionId, StringComparison.Ordinal) &&
+            string.Equals(previous.InstanceId, instanceId, StringComparison.Ordinal);
+        settings.Firewall = new AliyunFirewallSettings
+        {
+            RegionId = regionId,
+            InstanceId = instanceId,
+            AutoSyncOnStartup = incoming.AutoSyncOnStartup,
+            ManagedDynamicRuleId = sameTarget ? previous.ManagedDynamicRuleId : null,
+            ManagedRegionId = sameTarget ? previous.ManagedRegionId : null,
+            ManagedInstanceId = sameTarget ? previous.ManagedInstanceId : null
+        };
+        settings.PrivateDirectory = SettingsRepository.DefaultPrivateDirectory;
+        await SettingsRepository.SaveAsync(settings);
+        return accessKeyVault.IsConfigured;
+    }
+
     public async Task<string> SetThemeAsync(JsonElement payload, UserSettings settings)
     {
         var theme = payload.GetProperty("theme").GetString() ?? "Atri";
@@ -52,5 +95,14 @@ public sealed class SettingsService
     {
         if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/') || path.Contains('\n') || path.Contains('\r') || path.Contains('\0'))
             throw new InvalidDataException(label + "路径必须是合法的绝对路径。");
+    }
+
+    private sealed class FirewallSettingsSubmission
+    {
+        public string RegionId { get; init; } = "";
+        public string InstanceId { get; init; } = "";
+        public bool AutoSyncOnStartup { get; init; }
+        public string AccessKeyId { get; init; } = "";
+        public string AccessKeySecret { get; init; } = "";
     }
 }

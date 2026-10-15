@@ -91,6 +91,8 @@
     }
     $('#settingsConnectButton').disabled = busyNow;
     $('#saveSettingsButton').disabled = busyNow;
+    $('#saveFirewallSettingsButton').disabled = busyNow;
+    $('#syncSshWhitelistButton').disabled = busyNow;
     $('#exportLogsButton').disabled = busyNow;
     $('#saveMemoryButton').disabled = busyNow || !appState.memoryEditing || !appState.dirtyMemory;
     $('#saveStickerButton').disabled = busyNow || !appState.stickerEditingEnabled || !appState.dirtyStickers;
@@ -511,7 +513,7 @@
       syncBackupButton, setBusy, isConnected: () => $('.connection-chip').classList.contains('connected')
     });
     appState.settingsController = window.OpenClawSettingsController.create({
-      $, bridgeCall, state: appState.settingsModel, setStatus, showToast, reportError, connectServer
+      $, bridgeCall, state: appState.settingsModel, setStatus, showToast, reportError, connectServer, setBusy
     });
     appState.eventBindings = window.OpenClawEventBindings.create({
       $, $$, appState, switchTab, connectServer, toggleConnection, syncConnectionButton, toggleBackupPause, cancelBackup,
@@ -525,18 +527,24 @@
     });
     appState.eventBindings.wireEvents(); initializeBackdrop();
     let initialized = false;
+    let startupSyncRequired = false;
+    let startupSyncSucceeded = true;
     try {
       const state = await bridgeCall('initialize', {});
       fillSettings(state.settings.connection, state.settings.backupRetentionCount);
+      appState.settingsController.fillFirewallSettings(state.settings.firewall, state.aliyunCredentialsConfigured);
       $('#privatePath').textContent = state.privateDirectory;
       $('#backupPath').textContent = state.backupDirectory;
       applyTheme(state.settings.themeName || 'Atri');
       setStatus('私密数据目录已就绪：' + state.privateDirectory);
+      startupSyncRequired = Boolean(state.settings.firewall && state.settings.firewall.autoSyncOnStartup);
       initialized = true;
     } catch (error) { reportError(error); }
     setBusy(false);
     syncConnectionButton();
-    if (initialized) await connectServer();
+    if (initialized && startupSyncRequired)
+      startupSyncSucceeded = await appState.settingsController.syncSshWhitelist();
+    if (initialized && startupSyncSucceeded) await connectServer();
   }
 
   document.addEventListener('DOMContentLoaded', () => {

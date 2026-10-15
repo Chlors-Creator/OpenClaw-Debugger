@@ -1,0 +1,129 @@
+.firewall-panel {
+  margin-top: 15px;
+  padding: 20px;
+}
+
+.firewall-description {
+  max-width: 860px;
+  margin: 13px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.firewall-description strong {
+  color: var(--accent2);
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+
+.firewall-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 16px;
+}
+
+.firewall-form-grid label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.firewall-form-grid input {
+  width: 100%;
+  height: 39px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  padding: 0 11px;
+  background: rgba(5, 18, 16, .43);
+  color: var(--ink);
+  font: 11px 'DM Sans', sans-serif;
+}
+
+.firewall-form-grid input:focus {
+  border-color: var(--accent);
+}
+
+.firewall-form-grid input::placeholder {
+  color: var(--muted2);
+}
+
+.firewall-auto-sync {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.firewall-auto-sync input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.firewall-auto-sync span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.firewall-auto-sync strong {
+  font-size: 11px;
+}
+
+.firewall-auto-sync small {
+  color: var(--muted2);
+  font-size: 9px;
+}
+
+.firewall-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.firewall-actions #firewallCredentialStatus {
+  margin-left: auto;
+  color: var(--muted2);
+  font-size: 9px;
+}
+
+.firewall-sync-result {
+  margin-top: 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(5, 17, 15, .3);
+  color: var(--accent2);
+  font-size: 10px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.firewall-warning {
+  max-width: 950px;
+  margin-top: 12px;
+}
+
+body.theme-light .firewall-form-grid input,
+body.theme-light .firewall-sync-result {
+  background: rgba(242, 247, 252, .78);
+  color: var(--ink);
+}
+
+@media (max-width: 780px) {
+  .firewall-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .firewall-actions #firewallCredentialStatus {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}

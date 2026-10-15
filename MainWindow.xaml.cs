@@ -17,6 +17,9 @@ public partial class MainWindow : Window
     private BridgeCommandContract? _bridgeContract;
     private readonly ConnectionCoordinator _connection;
     private readonly HttpClient _clawHubHttpClient;
+    private readonly HttpClient _egressIpHttpClient;
+    private readonly IAliyunAccessKeyVault _aliyunAccessKeyVault;
+    private readonly SshWhitelistSyncService _sshWhitelistSync;
     private readonly PluginCommunityService _pluginCommunity;
     private readonly RemoteTaskScheduler _taskScheduler;
     private readonly object _busySync = new();
@@ -29,6 +32,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         _clawHubHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+        _egressIpHttpClient = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false })
+        {
+            Timeout = TimeSpan.FromSeconds(15)
+        };
+        _aliyunAccessKeyVault = new WindowsAliyunAccessKeyVault();
+        _sshWhitelistSync = new SshWhitelistSyncService(
+            new PublicEgressIpProvider(_egressIpHttpClient), new SwasFirewallApiFactory());
         var clawHubClient = new ClawHubPluginClient(_clawHubHttpClient);
         _pluginCommunity = new PluginCommunityService(clawHubClient, new ClawHubPluginSecurityScanner(clawHubClient));
         _taskScheduler = new RemoteTaskScheduler(status =>
@@ -37,7 +47,11 @@ public partial class MainWindow : Window
             () => _busy,
             SetBusy,
             (command, data) => _bridgeResponses.SendProgress(command, data));
-        Closed += (_, _) => _clawHubHttpClient.Dispose();
+        Closed += (_, _) =>
+        {
+            _clawHubHttpClient.Dispose();
+            _egressIpHttpClient.Dispose();
+        };
         InitializeComponent();
     }
 
@@ -128,7 +142,9 @@ public partial class MainWindow : Window
             () => _settings,
             () => _connection.IsConnected,
             ConnectAsync,
-            DisconnectAsync).Register(router);
+            DisconnectAsync,
+            _aliyunAccessKeyVault).Register(router);
+        new FirewallBridgeHandler(_settingsService, () => _settings, _aliyunAccessKeyVault, _sshWhitelistSync).Register(router);
         new MemoryBridgeHandler(() => _connection.Memory).Register(router);
         new StickerBridgeHandler(() => _connection.Stickers).Register(router);
         new ModelBridgeHandler(() => _connection.Models).Register(router);

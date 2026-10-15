@@ -13,6 +13,7 @@
     <Compile Remove="ModelSecurityTests.cs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="AlibabaCloud.SDK.SWAS-OPEN20200601" Version="4.0.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <Resource Include="Assets\OpenClawDebugger.ico" />
     <EmbeddedResource Include="RemoteAgentProgram.py" />

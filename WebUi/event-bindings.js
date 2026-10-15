@@ -35,6 +35,8 @@
     $('#cancelBackupButton').addEventListener('click', cancelBackup);
     $('#settingsConnectButton').addEventListener('click', () => saveConnectionSettings(true));
     $('#saveSettingsButton').addEventListener('click', () => saveConnectionSettings(false));
+    $('#saveFirewallSettingsButton').addEventListener('click', () => appState.settingsController.saveFirewallSettings());
+    $('#syncSshWhitelistButton').addEventListener('click', () => appState.settingsController.syncSshWhitelist());
     $('#openPrivateButton').addEventListener('click', () => bridgeCall('openPrivateFolder', {}).catch(reportError));
     $('#exportLogsButton').addEventListener('click', async () => {
       try {

@@ -34,6 +34,29 @@ internal static class BridgeContractGenerated
                     ["backupRetentionCount"] = "integer",
                 }
             },
+            ["saveFirewallSettings"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "settings",
+                TimeoutMs = 30000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["regionId"] = "string",
+                    ["instanceId"] = "string",
+                    ["autoSyncOnStartup"] = "boolean",
+                    ["accessKeyId"] = "string",
+                    ["accessKeySecret"] = "string",
+                }
+            },
+            ["syncSshWhitelist"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "security",
+                TimeoutMs = 300000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                }
+            },
             ["setTheme"] = new BridgeCommandDefinition
             {
                 Mode = "local",

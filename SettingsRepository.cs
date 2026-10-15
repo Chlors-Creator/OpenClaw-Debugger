@@ -36,6 +36,7 @@ public static class SettingsRepository
             {
                 loaded.PrivateDirectory = settings.PrivateDirectory;
                 loaded.Connection ??= new ConnectionSettings();
+                loaded.Firewall ??= new AliyunFirewallSettings();
                 loaded.BackupRetentionCount = Math.Clamp(loaded.BackupRetentionCount, 1, 30);
                 settings = loaded;
             }
