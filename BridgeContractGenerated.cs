@@ -181,6 +181,37 @@ internal static class BridgeContractGenerated
                 {
                 }
             },
+            ["getCustomArtifacts"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "customArtifacts",
+                TimeoutMs = 30000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                }
+            },
+            ["uploadCustomArtifact"] = new BridgeCommandDefinition
+            {
+                Mode = "localUpload",
+                Domain = "customArtifacts",
+                TimeoutMs = 1800000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["type"] = "string",
+                    ["fileName"] = "string",
+                    ["size"] = "integer",
+                }
+            },
+            ["deleteCustomArtifact"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "customArtifacts",
+                TimeoutMs = 30000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["id"] = "string",
+                }
+            },
             ["inspectSkill"] = new BridgeCommandDefinition
             {
                 Mode = "remote",
@@ -254,6 +285,16 @@ internal static class BridgeContractGenerated
                     ["packageName"] = "string",
                     ["version"] = "string",
                     ["forceRefresh"] = "boolean",
+                }
+            },
+            ["lookupInstalledPluginCategories"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "pluginCommunity",
+                TimeoutMs = 180000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["plugins"] = "array",
                 }
             },
             ["browseSkillCommunity"] = new BridgeCommandDefinition

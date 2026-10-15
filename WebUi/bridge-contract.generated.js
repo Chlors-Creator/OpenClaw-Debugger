@@ -151,6 +151,32 @@
 
                                                    }
                                    },
+                     "getCustomArtifacts":  {
+                                                "mode":  "local",
+                                                "domain":  "customArtifacts",
+                                                "timeoutMs":  30000,
+                                                "payload":  {
+
+                                                            }
+                                            },
+                     "uploadCustomArtifact":  {
+                                                  "mode":  "localUpload",
+                                                  "domain":  "customArtifacts",
+                                                  "timeoutMs":  1800000,
+                                                  "payload":  {
+                                                                  "type":  "string",
+                                                                  "fileName":  "string",
+                                                                  "size":  "integer"
+                                                              }
+                                              },
+                     "deleteCustomArtifact":  {
+                                                  "mode":  "local",
+                                                  "domain":  "customArtifacts",
+                                                  "timeoutMs":  30000,
+                                                  "payload":  {
+                                                                  "id":  "string"
+                                                              }
+                                              },
                      "inspectSkill":  {
                                           "mode":  "remote",
                                           "domain":  "skill",
@@ -212,6 +238,14 @@
                                                                           "forceRefresh":  "boolean"
                                                                       }
                                                       },
+                     "lookupInstalledPluginCategories":  {
+                                                             "mode":  "local",
+                                                             "domain":  "pluginCommunity",
+                                                             "timeoutMs":  180000,
+                                                             "payload":  {
+                                                                             "plugins":  "array"
+                                                                         }
+                                                         },
                      "browseSkillCommunity":  {
                                                   "mode":  "local",
                                                   "domain":  "skillCommunity",

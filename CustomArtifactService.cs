@@ -1,5 +1,4 @@
 using System.IO;
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -20,8 +19,7 @@ public sealed record CustomArtifact(
 public sealed class CustomArtifactService
 {
     private const long MaximumArchiveBytes = 100L * 1024 * 1024;
-    private const long MaximumMetadataBytes = 1024 * 1024;
-    private const int MaximumDescriptionLength = 2000;
+    private const int CopyBufferSizeBytes = 256 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
@@ -86,7 +84,7 @@ public sealed class CustomArtifactService
         try
         {
             var sha256 = await CopyAndHashAsync(sourcePath, stagingPath, size, cancellationToken);
-            var metadata = ReadArchiveMetadata(stagingPath, type, fileName);
+            var metadata = CustomArtifactArchiveReader.Read(stagingPath, type, fileName);
             var artifact = new CustomArtifact(
                 id, type, metadata.Name, metadata.Description, metadata.Version,
                 fileName, size, sha256, DateTimeOffset.UtcNow);
@@ -107,15 +105,15 @@ public sealed class CustomArtifactService
         string sourcePath, string stagingPath, long expectedSize, CancellationToken cancellationToken)
     {
         await using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            256 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            CopyBufferSizeBytes, FileOptions.Asynchronous | FileOptions.SequentialScan);
         await using var destination = new FileStream(stagingPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-            256 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            CopyBufferSizeBytes, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var buffer = new byte[256 * 1024];
+        var buffer = new byte[CopyBufferSizeBytes];
         long copied = 0;
         while (true)
         {
-            var read = await source.ReadAsync(buffer, cancellationToken);
+            var read = await source.ReadAsync(buffer.AsMemory(), cancellationToken);
             if (read == 0) break;
             copied += read;
             if (copied > expectedSize) throw new IOException("上传文件在读取期间发生变化。");
@@ -137,13 +135,13 @@ public sealed class CustomArtifactService
         try
         {
             await WriteAllAsync(artifacts.Where(item => item.Id != id).ToArray(), cancellationToken);
-            File.Delete(pendingDelete);
         }
         catch
         {
             if (File.Exists(pendingDelete) && !File.Exists(source)) File.Move(pendingDelete, source);
             throw;
         }
+        File.Delete(pendingDelete);
         return new { deleted = true, id };
     }
 
@@ -157,6 +155,7 @@ public sealed class CustomArtifactService
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var artifact in artifacts)
         {
+            if (artifact is null) throw new InvalidDataException("自定义列表包含空记录。");
             ValidateRecord(artifact);
             if (!ids.Add(artifact.Id)) throw new InvalidDataException("自定义列表存在重复项目 ID：" + artifact.Id);
             if (!File.Exists(ArtifactPath(artifact)))
@@ -179,87 +178,6 @@ public sealed class CustomArtifactService
         finally { DeleteIfPresent(temporaryPath); }
     }
 
-    private static ArtifactMetadata ReadArchiveMetadata(string path, string type, string fileName)
-    {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
-        return type == "plugin"
-            ? ReadPluginMetadata(archive, fileName)
-            : ReadSkillMetadata(archive, fileName);
-    }
-
-    private static ArtifactMetadata ReadPluginMetadata(ZipArchive archive, string fileName)
-    {
-        var entries = archive.Entries.Where(entry => PluginManifestNames.Any(name => HasArchivePath(entry, name))).ToArray();
-        if (entries.Length != 1) throw new InvalidDataException("插件 ZIP 包必须且只能包含一个 OpenClaw 或兼容插件清单。");
-        var entry = entries[0];
-        using var document = JsonDocument.Parse(ReadEntryText(entry));
-        var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException("插件清单必须是 JSON 对象。");
-        if (Path.GetFileName(entry.FullName).Equals("package.json", StringComparison.OrdinalIgnoreCase) &&
-            (!root.TryGetProperty("openclaw", out var openclaw) || openclaw.ValueKind != JsonValueKind.Object))
-            throw new InvalidDataException("package.json 未声明 OpenClaw 插件扩展。");
-        var name = StringProperty(root, "name") ?? StringProperty(root, "id") ?? Path.GetFileNameWithoutExtension(fileName);
-        var description = StringProperty(root, "description") ?? StringProperty(root, "summary") ?? "";
-        var version = StringProperty(root, "version") ?? "";
-        return ValidateMetadata(name, description, version);
-    }
-
-    private static ArtifactMetadata ReadSkillMetadata(ZipArchive archive, string fileName)
-    {
-        var entries = archive.Entries.Where(entry =>
-            Path.GetFileName(entry.FullName).Equals("SKILL.md", StringComparison.OrdinalIgnoreCase)).ToArray();
-        if (entries.Length != 1) throw new InvalidDataException("技能 ZIP 包必须且只能包含一个 SKILL.md。");
-        var text = ReadEntryText(entries[0]);
-        var name = ReadFrontmatterValue(text, "name") ??
-            Path.GetFileName(Path.GetDirectoryName(entries[0].FullName) ?? "") ?? Path.GetFileNameWithoutExtension(fileName);
-        var description = ReadFrontmatterValue(text, "description") ?? "";
-        return ValidateMetadata(name, description, ReadFrontmatterValue(text, "version") ?? "");
-    }
-
-    private static string ReadEntryText(ZipArchiveEntry entry)
-    {
-        if (entry.Length > MaximumMetadataBytes) throw new InvalidDataException("ZIP 包中的元数据文件超过 1 MiB。");
-        using var source = entry.Open();
-        using var destination = new MemoryStream();
-        source.CopyTo(destination);
-        if (destination.Length > MaximumMetadataBytes) throw new InvalidDataException("ZIP 包中的元数据文件超过 1 MiB。");
-        return new UTF8Encoding(false, true).GetString(destination.ToArray());
-    }
-
-    private static string? ReadFrontmatterValue(string text, string key)
-    {
-        var lines = text.Replace("\r", "", StringComparison.Ordinal).Split('\n');
-        if (lines.Length == 0 || lines[0].Trim() != "---") return null;
-        foreach (var line in lines.Skip(1).TakeWhile(value => value.Trim() != "---"))
-        {
-            var separator = line.IndexOf(':');
-            if (separator < 1 || !line[..separator].Trim().Equals(key, StringComparison.OrdinalIgnoreCase)) continue;
-            return line[(separator + 1)..].Trim().Trim('"', '\'');
-        }
-        return null;
-    }
-
-    private static bool HasArchivePath(ZipArchiveEntry entry, string expected) =>
-        entry.FullName.Equals(expected, StringComparison.OrdinalIgnoreCase) ||
-        entry.FullName.EndsWith("/" + expected, StringComparison.OrdinalIgnoreCase);
-
-    private static string? StringProperty(JsonElement element, string name) =>
-        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()?.Trim()
-            : null;
-
-    private static ArtifactMetadata ValidateMetadata(string name, string description, string version)
-    {
-        name = name.Trim();
-        description = description.Trim();
-        version = version.Trim();
-        if (name.Length is < 1 or > 180) throw new InvalidDataException("自定义项目名称需为 1 到 180 个字符。");
-        if (description.Length > MaximumDescriptionLength) throw new InvalidDataException("项目介绍超过 2000 个字符。");
-        if (version.Length > 120) throw new InvalidDataException("项目版本超过 120 个字符。");
-        return new ArtifactMetadata(name, description, version);
-    }
-
     private string ArtifactPath(CustomArtifact artifact)
     {
         ValidateRecord(artifact);
@@ -268,16 +186,20 @@ public sealed class CustomArtifactService
 
     private static void ValidateRecord(CustomArtifact artifact)
     {
-        if (!Guid.TryParseExact(artifact.Id, "N", out _) || artifact.Type is not ("plugin" or "skill") ||
-            artifact.Name.Length is < 1 or > 180 || artifact.Size < 1 ||
-            artifact.Sha256.Length != 64 || artifact.Sha256.Any(value => !Uri.IsHexDigit(value)))
+        if (artifact.Id is null || artifact.Type is null || artifact.Name is null || artifact.Description is null ||
+            artifact.Version is null || artifact.FileName is null || artifact.Sha256 is null ||
+            !Guid.TryParseExact(artifact.Id, "N", out _) || artifact.Type is not ("plugin" or "skill") ||
+            artifact.Name.Length is < 1 or > 180 || artifact.Description.Length > CustomArtifactArchiveReader.MaximumDescriptionLength ||
+            artifact.Version.Length > 120 || artifact.FileName.Length is < 1 or > 180 ||
+            artifact.Size is < 1 or > MaximumArchiveBytes || artifact.Sha256.Length != 64 ||
+            artifact.Sha256.Any(value => !Uri.IsHexDigit(value)))
             throw new InvalidDataException("自定义项目索引包含无效记录。");
     }
 
     private static void ValidateUpload(string type, string fileName, long size, string sourcePath)
     {
         if (type is not ("plugin" or "skill")) throw new InvalidDataException("请选择插件或技能类型。");
-        if (string.IsNullOrWhiteSpace(fileName) || Path.GetFileName(fileName) != fileName ||
+        if (string.IsNullOrWhiteSpace(fileName) || fileName.Length > 180 || Path.GetFileName(fileName) != fileName ||
             fileName.Any(char.IsControl) || Path.GetExtension(fileName).Equals(".zip", StringComparison.OrdinalIgnoreCase) is false)
             throw new InvalidDataException("请选择 ZIP 格式的插件包或技能包。");
         if (size is < 1 or > MaximumArchiveBytes) throw new InvalidDataException("ZIP 包大小需在 1 B 到 100 MiB 之间。");
@@ -303,6 +225,4 @@ public sealed class CustomArtifactService
     {
         if (File.Exists(path)) File.Delete(path);
     }
-
-    private sealed record ArtifactMetadata(string Name, string Description, string Version);
 }

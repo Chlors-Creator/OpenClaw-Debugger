@@ -8,5 +8,6 @@ public sealed class PluginCommunityBridgeHandler(PluginCommunityService service)
         router.Map("browsePluginCommunity", async (payload, token) => await service.BrowseAsync(payload, token));
         router.Map("searchPluginCommunity", async (payload, token) => await service.SearchAsync(payload, token));
         router.Map("checkPluginCommunitySecurity", async (payload, token) => await service.CheckSecurityAsync(payload, token));
+        router.Map("lookupInstalledPluginCategories", async (payload, token) => await service.LookupInstalledPluginCategoriesAsync(payload, token));
     }
 }

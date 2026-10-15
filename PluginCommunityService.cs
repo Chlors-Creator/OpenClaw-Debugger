@@ -49,9 +49,9 @@ public sealed class PluginCommunityService(IClawHubPluginClient catalog, IPlugin
     private async Task<JsonNode> LookupPluginCategoryAsync(JsonElement plugin, CancellationToken cancellationToken)
     {
         var pluginId = ReadPluginText(plugin, "id", "pluginId");
-        var package = ReadPluginText(plugin, "packageName", "installRef", "package.name", "source.packageName", "source.spec");
+        var package = ReadPluginText(plugin, "packageName", "installRef", "packageName.name", "package.name", "source.packageName", "source.spec", "source.package");
         var source = ReadPluginText(plugin, "source");
-        var packageReference = NormalizePackageReference(package) ?? NormalizePackageReference(source);
+        var packageReference = NormalizePackageReference(package) ?? RegistryPackageReference(source);
         var identifiers = new[] { packageReference, pluginId, ReadPluginText(plugin, "name", "displayName", "title") }
             .Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (identifiers.Length == 0) return CreateLookupResult(pluginId, "error", null, "插件缺少可用于 ClawHub 精确匹配的 ID 或包名。");
@@ -103,7 +103,7 @@ public sealed class PluginCommunityService(IClawHubPluginClient catalog, IPlugin
     {
         var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var source in ObjectSources(record))
-            foreach (var key in new[] { "id", "pluginId", "packageName", "installRef", "slug", "name" })
+            foreach (var key in new[] { "id", "pluginId", "packageName", "installRef", "package", "slug", "name" })
                 if (ReadNodeText(source[key]) is { Length: > 0 } value) identities.Add(NormalizeIdentity(value));
         return identities;
     }
@@ -171,6 +171,12 @@ public sealed class PluginCommunityService(IClawHubPluginClient catalog, IPlugin
         if (versionAt > 0) reference = reference[..versionAt];
         return string.IsNullOrWhiteSpace(reference) ? null : reference;
     }
+
+    private static string? RegistryPackageReference(string? source) =>
+        source is not null && (source.StartsWith("clawhub:", StringComparison.OrdinalIgnoreCase) ||
+            source.StartsWith("npm:", StringComparison.OrdinalIgnoreCase))
+            ? NormalizePackageReference(source)
+            : null;
 
     private static string NormalizeIdentity(string value) => value.Trim().TrimEnd('/').ToLowerInvariant();
 

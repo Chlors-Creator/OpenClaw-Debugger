@@ -16,6 +16,7 @@
     const model = window.OpenClawModelState.create();
     const plugin = window.OpenClawPluginState.create();
     const skill = window.OpenClawSkillState.create();
+    const customArtifact = window.OpenClawCustomArtifactState.create();
     const skillCommunity = window.OpenClawSkillCommunityState.create();
     const pluginCommunity = window.OpenClawPluginCommunityState.create();
     const sticker = window.OpenClawStickerState.create();
@@ -27,6 +28,7 @@
       model,
       plugin,
       skill,
+      customArtifact,
       skillCommunity,
       pluginCommunity,
       sticker,
@@ -63,6 +65,7 @@
       modelController: null,
       pluginController: null,
       skillController: null,
+      customArtifactController: null,
       skillCommunityController: null,
       pluginCommunityController: null,
       stickerController: null,

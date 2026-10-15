@@ -22,6 +22,8 @@
     if (!controller.isConnected() || state.loading || (state.loaded && !force)) return false;
     const generation = ++state.loadGeneration;
     state.loadController?.abort();
+    state.categoryLookupController?.abort();
+    state.categoryLookupController = null;
     const operation = new AbortController();
     state.loadController = operation;
     state.loading = true;
@@ -31,7 +33,8 @@
     try {
       const response = await controller.bridgeCall('getPlugins', {}, { signal: operation.signal });
       if (generation !== state.loadGeneration) return false;
-      storeInstalled(controller, response);
+      const plugins = storeInstalled(controller, response);
+      if (plugins) void lookupInstalledCategories(controller, plugins, generation);
       return !state.listFormatError;
     } catch (error) {
       state.loadError = String(error && error.message || error);
@@ -48,7 +51,7 @@
     const plugins = controller.view.resultArray(response);
     state.listFormatError = plugins === null;
     state.installedRaw = controller.view.resultValue(response);
-    state.installed = plugins || [];
+    state.installed = (plugins || []).map(plugin => ({ ...plugin, clawHubCategoryStatus: 'pending' }));
     state.loaded = true;
     state.loadError = '';
     controller.view.renderInstalled(controller);
@@ -58,6 +61,73 @@
     } else if (response.diagnostics) {
       controller.setStatus('插件清单诊断：' + String(response.diagnostics), true);
     }
+    return plugins;
+  }
+
+  async function lookupInstalledCategories(controller, plugins, generation) {
+    const state = controller.state;
+    if (!plugins.length) return;
+    const operation = new AbortController();
+    state.categoryLookupController = operation;
+    state.categoryLookupLoading = true;
+    controller.$('#pluginStatus').textContent = `已读取 ${plugins.length} 个插件，正在逐个查询 ClawHub 分类…`;
+    controller.view.renderInstalled(controller);
+    try {
+      const payload = { plugins: plugins.map(plugin => ({
+        id: pluginRecordId(plugin),
+        name: plugin.name || plugin.displayName || plugin.title || '',
+        packageName: plugin.packageName || plugin.installRef || '',
+        source: plugin.source || ''
+      })) };
+      const response = await controller.bridgeCall('lookupInstalledPluginCategories', payload, { signal: operation.signal });
+      if (generation !== state.loadGeneration) return;
+      const lookups = controller.view.resultArray(response);
+      if (!lookups) throw new Error('ClawHub 分类查询返回了无法识别的 JSON 结构。');
+      applyCategoryLookups(state, lookups);
+      const counts = categoryLookupCounts(lookups, plugins.length);
+      controller.$('#pluginStatus').textContent = `已读取 ${plugins.length} 个插件；ClawHub 分类匹配 ${counts.matched} 个，未收录 ${counts.notFound} 个，查询失败 ${counts.error} 个。`;
+    } catch (error) {
+      if (error && error.name === 'AbortError') return;
+      if (generation !== state.loadGeneration) return;
+      applyCategoryLookupError(state, error);
+      controller.$('#pluginStatus').textContent = '插件清单已读取，但 ClawHub 分类查询失败：' + String(error && error.message || error);
+      controller.reportError(error);
+    } finally {
+      if (generation === state.loadGeneration) {
+        state.categoryLookupLoading = false;
+        state.categoryLookupController = null;
+        controller.view.renderInstalled(controller);
+      }
+    }
+  }
+
+  function applyCategoryLookups(state, lookups) {
+    const byId = new Map(lookups.map(item => [String(item.id || '').toLowerCase(), item]));
+    state.installed = state.installed.map(plugin => {
+      const result = byId.get(pluginRecordId(plugin).toLowerCase());
+      if (!result) return { ...plugin, clawHubCategoryStatus: 'error', clawHubCategoryError: 'ClawHub 没有返回此插件的查询结果。' };
+      const categories = result.categories || [];
+      const hasCategories = window.OpenClawPluginCategoryUtils.values({ clawHubCategories: categories }).length > 0;
+      const status = result.status === 'matched' ? (hasCategories ? 'matched' : 'missing') : result.status;
+      return { ...plugin, clawHubCategories: categories, clawHubCategoryStatus: status, clawHubCategoryError: result.error || '' };
+    });
+  }
+
+  function applyCategoryLookupError(state, error) {
+    const message = String(error && error.message || error);
+    state.installed = state.installed.map(plugin => ({
+      ...plugin, clawHubCategoryStatus: 'error', clawHubCategoryError: message
+    }));
+  }
+
+  function categoryLookupCounts(lookups, requestedCount) {
+    const counts = lookups.reduce((summary, item) => {
+      const key = item.status === 'matched' ? 'matched' : item.status === 'notFound' ? 'notFound' : 'error';
+      summary[key] += 1;
+      return summary;
+    }, { matched: 0, notFound: 0, error: 0 });
+    counts.error += Math.max(0, requestedCount - lookups.length);
+    return counts;
   }
 
   function finishLoad(controller, generation) {
@@ -67,6 +137,10 @@
     state.loadController = null;
     controller.view.renderInstalled(controller);
     syncButtons(controller);
+  }
+
+  function pluginRecordId(plugin) {
+    return String(plugin.id || plugin.pluginId || plugin.name || '');
   }
 
   function reportOperationError(controller, error, prefix) {
@@ -220,12 +294,15 @@
   function reset(controller) {
     const state = controller.state;
     state.loadController?.abort();
+    state.categoryLookupController?.abort();
     state.loadGeneration += 1;
     state.installed = [];
     state.installedRaw = null;
     state.listFormatError = false;
     state.loaded = false;
     state.loading = false;
+    state.categoryLookupLoading = false;
+    state.categoryLookupController = null;
     state.mutating = false;
     state.loadError = '';
     controller.$('#pluginCount').textContent = '0';

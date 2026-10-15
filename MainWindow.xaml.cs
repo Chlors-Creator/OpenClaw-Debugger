@@ -115,6 +115,12 @@ public partial class MainWindow : Window
         var contract = _bridgeContract ?? throw new InvalidOperationException("界面协议尚未加载。");
         var definition = contract.GetCommand(command);
         var router = _commandRouter ?? throw new InvalidOperationException("界面命令路由器未初始化。");
+        if (command == "uploadCustomArtifact")
+        {
+            var path = files.FirstOrDefault()?.Path ?? throw new InvalidDataException("没有收到本地 ZIP 包。");
+            return await (_customArtifactBridge ?? throw new InvalidOperationException("自定义上传服务未初始化。"))
+                .UploadFileAsync(payload, path, cancellationToken);
+        }
         // Local UI work and explicit interruption controls do not use the SSH queue.
         var immediate = definition.Mode is "local" ||
             command is "toggleBackupPause" or "cancelBackup" or "cancelStickerUpload" or "close";
@@ -144,9 +150,6 @@ public partial class MainWindow : Window
         if (command == "streamStickerUpload")
             return await (_connection.Stickers ?? throw new InvalidOperationException("表情包服务未初始化。"))
                 .UploadFileAsync(payload, localPath ?? throw new InvalidDataException("没有收到本地上传文件。"), cancellationToken);
-        if (command == "uploadCustomArtifact")
-            return await (_customArtifactBridge ?? throw new InvalidOperationException("自定义上传服务未初始化。"))
-                .UploadFileAsync(payload, localPath ?? throw new InvalidDataException("没有收到本地 ZIP 包。"), cancellationToken);
         return await router.DispatchAsync(command, payload, cancellationToken);
     }
 

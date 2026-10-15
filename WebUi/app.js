@@ -221,6 +221,8 @@
       appState.skillController?.load();
     if (name === 'skills' && !appState.skillCommunity.loaded && !appState.skillCommunity.loading)
       appState.skillCommunityController?.browse();
+    if (name === 'custom' && !appState.customArtifact.loaded && !appState.customArtifact.loading)
+      appState.customArtifactController?.load();
   }
 
   function setDirtyState() {
@@ -498,6 +500,9 @@
     appState.skillController = window.OpenClawSkillController.create({
       $, $$, bridgeCall, state: appState.skill, reportError, showToast,
       isConnected, connectionState: appState.connection
+    });
+    appState.customArtifactController = window.OpenClawCustomArtifactController.create({
+      $, $$, bridgeCall, state: appState.customArtifact, reportError, showToast
     });
     appState.skillCommunityController = window.OpenClawSkillCommunityController.create({
       $, $$, bridgeCall, state: appState.skillCommunity, reportError, showToast,
