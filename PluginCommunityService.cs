@@ -48,7 +48,7 @@ public sealed class PluginCommunityService(IClawHubPluginClient catalog, IPlugin
 
     private async Task<JsonNode> LookupPluginCategoryAsync(JsonElement plugin, CancellationToken cancellationToken)
     {
-        var pluginId = ReadPluginText(plugin, "id", "pluginId");
+        var pluginId = ReadPluginText(plugin, "id", "pluginId") ?? "";
         var package = ReadPluginText(plugin, "packageName", "installRef", "packageName.name", "package.name", "source.packageName", "source.spec", "source.package");
         var source = ReadPluginText(plugin, "source");
         var packageReference = NormalizePackageReference(package) ?? RegistryPackageReference(source);

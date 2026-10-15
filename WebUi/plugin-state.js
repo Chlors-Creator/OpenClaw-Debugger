@@ -7,7 +7,6 @@
         installed: [],
         loaded: false,
         loading: false,
-        categoryLookupLoading: false,
         categoryLookupController: null,
         mutating: false,
         loadError: '',

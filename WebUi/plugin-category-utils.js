@@ -61,9 +61,13 @@
   }
 
   function values(item) {
+    const lookupComplete = item && item.clawHubCategoryStatus === 'matched';
+    if (item && item.clawHubCategoryStatus && !lookupComplete) return [];
     const labels = new Map();
-    for (const source of sourcesOf(item)) {
-      for (const field of CATEGORY_FIELDS) {
+    const sources = lookupComplete ? [item] : sourcesOf(item);
+    const fields = lookupComplete ? ['clawHubCategories'] : CATEGORY_FIELDS;
+    for (const source of sources) {
+      for (const field of fields) {
         const raw = source[field];
         const entries = Array.isArray(raw) ? raw : [raw];
         for (const entry of entries) {

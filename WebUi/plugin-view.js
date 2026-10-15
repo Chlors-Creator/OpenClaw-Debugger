@@ -36,17 +36,20 @@
   }
 
   function renderCategoryTags(plugin) {
-    const categories = window.OpenClawPluginCategoryUtils.values(plugin);
     const tags = document.createElement('div');
     tags.className = 'plugin-category-tags';
+    const status = plugin.clawHubCategoryStatus;
+    if (status === 'pending') {
+      tags.appendChild(textElement('span', 'plugin-category-tag plugin-category-tag-muted', '正在查找 ClawHub 分类'));
+      return tags;
+    }
+    const categories = window.OpenClawPluginCategoryUtils.values(plugin);
     if (categories.length) {
       categories.forEach(category => tags.appendChild(textElement(
         'span', 'plugin-category-tag', window.OpenClawPluginCategoryUtils.label(category))));
       return tags;
     }
-    const status = plugin.clawHubCategoryStatus;
     const labels = {
-      pending: '正在查找 ClawHub 分类',
       notFound: '未收录于 ClawHub',
       missing: 'ClawHub 未提供分类',
       error: 'ClawHub 分类查询失败'

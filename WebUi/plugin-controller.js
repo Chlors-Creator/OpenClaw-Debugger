@@ -69,7 +69,6 @@
     if (!plugins.length) return;
     const operation = new AbortController();
     state.categoryLookupController = operation;
-    state.categoryLookupLoading = true;
     controller.$('#pluginStatus').textContent = `已读取 ${plugins.length} 个插件，正在逐个查询 ClawHub 分类…`;
     controller.view.renderInstalled(controller);
     try {
@@ -94,7 +93,6 @@
       controller.reportError(error);
     } finally {
       if (generation === state.loadGeneration) {
-        state.categoryLookupLoading = false;
         state.categoryLookupController = null;
         controller.view.renderInstalled(controller);
       }
@@ -301,7 +299,6 @@
     state.listFormatError = false;
     state.loaded = false;
     state.loading = false;
-    state.categoryLookupLoading = false;
     state.categoryLookupController = null;
     state.mutating = false;
     state.loadError = '';
