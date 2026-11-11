@@ -1,6 +1,6 @@
 # OpenClaw Debugger
 
-OpenClaw Debugger 是一款桌面工具，用于管理 OpenClaw 工作区及常用扩展内容。当前提供 Windows 版本，macOS 版本正在移植中。
+OpenClaw Debugger 是一款桌面工具，用于管理 OpenClaw 工作区及常用扩展内容。提供 Windows 与 macOS 两个版本，界面与业务逻辑共用同一份代码。
 
 ## 功能
 
@@ -26,7 +26,8 @@ OpenClaw Debugger 是一款桌面工具，用于管理 OpenClaw 工作区及常�
 | `src/OpenClawDebugger.Core` | `net10.0` 跨平台核心：桥接路由、SSH 客户端、业务服务、平台抽象接口 |
 | `src/OpenClawDebugger.Platform.Windows` | Windows 实现：凭据管理器、DPAPI、ssh 路径探测、WPF 缩略图编码 |
 | `src/OpenClawDebugger.Platform.Mac` | macOS 实现：Keychain、AES-GCM 快照加密、sips 缩略图 |
-| `src/OpenClawDebugger.Shell.Windows` | WPF + WebView2 外壳，当前发布目标 |
+| `src/OpenClawDebugger.Shell.Windows` | WPF + WebView2 外壳 |
+| `src/OpenClawDebugger.Shell.Mac` | Avalonia + NativeWebView（WKWebView）外壳 |
 | `shared/WebUi` | 界面资源唯一真源，两个平台的壳都以复制方式引用 |
 | `tools/OpenClawDebugger.ContractGen` | 桥接契约生成器，替代原 PowerShell 脚本 |
 | `tests/OpenClawDebugger.Tests` | `net10.0` 测试套件，Windows 与 macOS 都能直接运行 |
@@ -45,12 +46,27 @@ macOS 上编译整个解决方案并运行测试（Windows 壳会交叉编译，
 ./build/build-mac.sh
 ```
 
+macOS 打包成可双击运行的 `.app`：
+
+```bash
+./build/build-mac-app.sh              # 生成到 artifacts/OpenClawDebugger.app
+./build/build-mac-app.sh --install    # 生成并安装到 /Applications
+```
+
+产物为自包含 arm64 应用，采用 ad-hoc 签名，只能在本机运行。对外分发需要 Apple Developer ID 签名并通过 `notarytool` 公证，否则 Gatekeeper 会拦截。
+
 ## 运行要求
 
 - Windows 10 或更高版本。
 - Windows OpenSSH Client。
 - Microsoft WebView2 Runtime。
 - 远端环境已安装 OpenClaw；使用备份功能时还需要 Python 3、tar 和 gzip。
+
+macOS 额外要求：
+
+- macOS 11 或更高版本。
+- 开启「系统设置 → 通用 → 共享 → 远程登录」，因为本工具通过 SSH 管理目标机器（包括连本机）。
+- 免密登录：程序使用 `BatchMode=yes`，只接受密钥认证，不读取密码。目标机器需已配置 `~/.ssh/authorized_keys`，且主机指纹已在 `known_hosts` 中。
 
 ## 使用方法
 
