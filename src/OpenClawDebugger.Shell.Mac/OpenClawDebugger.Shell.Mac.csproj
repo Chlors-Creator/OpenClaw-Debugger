@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>OpenClawDebugger</RootNamespace>
+    <AssemblyName>OpenClawDebugger</AssemblyName>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationDisplayName>OpenClaw Debugger</ApplicationDisplayName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Controls.WebView" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenClawDebugger.Core\OpenClawDebugger.Core.csproj" />
+    <ProjectReference Include="..\OpenClawDebugger.Platform.Mac\OpenClawDebugger.Platform.Mac.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 界面资源唯一真源在 shared/WebUi，与 Windows 壳引用同一份。 -->
+    <Content Include="$(SharedWebUiDir)**/*"
+             Link="WebUi/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
