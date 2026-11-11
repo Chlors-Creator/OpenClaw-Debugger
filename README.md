@@ -68,6 +68,18 @@ macOS 额外要求：
 - 开启「系统设置 → 通用 → 共享 → 远程登录」，因为本工具通过 SSH 管理目标机器（包括连本机）。
 - 免密登录：程序使用 `BatchMode=yes`，只接受密钥认证，不读取密码。目标机器需已配置 `~/.ssh/authorized_keys`，且主机指纹已在 `known_hosts` 中。
 
+### 连接本机时提示「找不到 openclaw 命令」
+
+macOS 的 sshd 给非交互会话只提供 `PATH=/usr/bin:/bin:/usr/sbin:/sbin`，而 Node 版 `openclaw` 通常装在 `/usr/local/bin`。在目标机器的 `~/.zshenv` 中补充即可（只影响 SSH 会话）：
+
+```zsh
+if [[ -n "$SSH_CONNECTION" ]]; then
+  export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+fi
+```
+
+可用 `ssh <user>@<host> 'command -v openclaw'` 自查是否已生效。
+
 ## 使用方法
 
 1. 从项目发布页获取并解压程序包。
