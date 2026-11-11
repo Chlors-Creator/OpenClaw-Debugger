@@ -1,0 +1,28 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- 仓库根目录：所有跨工程引用都基于这个属性，避免相对路径层层 ../../ -->
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <SharedWebUiDir>$(RepoRoot)shared/WebUi/</SharedWebUiDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 在 macOS / Linux 上编译 net10.0-windows 工程需要这个开关；Windows 上自动跳过。 -->
+    <EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 构建期调用的是当前构建自己的 dotnet 主机，避免 PATH 里找不到 dotnet。 -->
+    <DotnetHost Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</DotnetHost>
+    <DotnetHost Condition="'$(DotnetHost)' == ''">dotnet</DotnetHost>
+  </PropertyGroup>
+
+</Project>

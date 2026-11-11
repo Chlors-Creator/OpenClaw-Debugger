@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- macOS 专属实现。刻意保持零第三方依赖，保证在没有 GUI 壳的情况下也能单独编译验证。 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>OpenClawDebugger</RootNamespace>
+    <AssemblyName>OpenClawDebugger.Platform.Mac</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OpenClawDebugger.Core/OpenClawDebugger.Core.csproj" />
+  </ItemGroup>
+
+</Project>

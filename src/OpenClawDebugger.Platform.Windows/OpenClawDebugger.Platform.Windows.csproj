@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Windows 专属实现的落点：凭据管理器、DPAPI、ssh.exe 路径探测、WPF 缩略图编码、资源管理器打开目录。 -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>OpenClawDebugger</RootNamespace>
+    <AssemblyName>OpenClawDebugger.Platform.Windows</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OpenClawDebugger.Core/OpenClawDebugger.Core.csproj" />
+  </ItemGroup>
+
+</Project>

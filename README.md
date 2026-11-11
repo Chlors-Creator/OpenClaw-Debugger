@@ -1,6 +1,6 @@
 # OpenClaw Debugger
 
-OpenClaw Debugger 是一款 Windows 桌面工具，用于管理 OpenClaw 工作区及常用扩展内容。
+OpenClaw Debugger 是一款桌面工具，用于管理 OpenClaw 工作区及常用扩展内容。当前提供 Windows 版本，macOS 版本正在移植中。
 
 ## 功能
 
@@ -16,6 +16,34 @@ OpenClaw Debugger 是一款 Windows 桌面工具，用于管理 OpenClaw 工作�
 - **服务器备份**：创建服务器文件系统归档，查看进度、速度与剩余时间，并支持暂停、继续、取消和传输中断后续传。
 
 远程操作由统一队列管理，并显示等待、运行、暂停、取消、失败和完成状态。
+
+## 仓库结构
+
+单仓库多工程结构，同一份跨平台核心由两个平台的壳共享：
+
+| 路径 | 说明 |
+| --- | --- |
+| `src/OpenClawDebugger.Core` | `net10.0` 跨平台核心：桥接路由、SSH 客户端、业务服务、平台抽象接口 |
+| `src/OpenClawDebugger.Platform.Windows` | Windows 实现：凭据管理器、DPAPI、ssh 路径探测、WPF 缩略图编码 |
+| `src/OpenClawDebugger.Platform.Mac` | macOS 实现：Keychain、AES-GCM 快照加密、sips 缩略图 |
+| `src/OpenClawDebugger.Shell.Windows` | WPF + WebView2 外壳，当前发布目标 |
+| `shared/WebUi` | 界面资源唯一真源，两个平台的壳都以复制方式引用 |
+| `tools/OpenClawDebugger.ContractGen` | 桥接契约生成器，替代原 PowerShell 脚本 |
+| `tests/OpenClawDebugger.Tests` | `net10.0` 测试套件，Windows 与 macOS 都能直接运行 |
+
+## 构建
+
+Windows 发布：
+
+```powershell
+pwsh build/build-win.ps1
+```
+
+macOS 上编译整个解决方案并运行测试（Windows 壳会交叉编译，用于确认核心改动没有破坏 Windows 侧）：
+
+```bash
+./build/build-mac.sh
+```
 
 ## 运行要求
 

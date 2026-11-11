@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 纯 net10.0：这个工程不允许出现任何 Windows 专属 API，macOS 必须能独立编译。 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>OpenClawDebugger</RootNamespace>
+    <AssemblyName>OpenClawDebugger.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AlibabaCloud.SDK.SWAS-OPEN20200601" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- LogicalName 必须保持不变：RemoteAgentProgram.cs 里硬编码了这几个资源名。 -->
+    <EmbeddedResource Include="Assets/RemoteAgentProgram.py" LogicalName="OpenClawDebugger.RemoteAgentProgram.py" />
+    <EmbeddedResource Include="Assets/RemotePluginOperations.py" LogicalName="OpenClawDebugger.RemotePluginOperations.py" />
+    <EmbeddedResource Include="Assets/RemoteSkillOperations.py" LogicalName="OpenClawDebugger.RemoteSkillOperations.py" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Assets/*.py" Visible="false" />
+  </ItemGroup>
+
+  <Target Name="GenerateBridgeContract"
+          BeforeTargets="CoreCompile"
+          Condition="'$(SkipBridgeContractGeneration)' != 'true'"
+          Inputs="$(SharedWebUiDir)bridge-contract.json"
+          Outputs="$(MSBuildProjectDirectory)/Bridge/BridgeContractGenerated.cs;$(SharedWebUiDir)bridge-contract.generated.js">
+    <Exec Command="&quot;$(DotnetHost)&quot; run --project &quot;$(RepoRoot)tools/OpenClawDebugger.ContractGen/OpenClawDebugger.ContractGen.csproj&quot; -- --repo-root &quot;$(RepoRoot)&quot;" />
+  </Target>
+
+</Project>

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>OpenClawDebugger</RootNamespace>
+    <AssemblyName>OpenClawDebugger</AssemblyName>
+    <ApplicationIcon>Assets/OpenClawDebugger.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OpenClawDebugger.Core/OpenClawDebugger.Core.csproj" />
+    <ProjectReference Include="../OpenClawDebugger.Platform.Windows/OpenClawDebugger.Platform.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets/OpenClawDebugger.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 界面资源唯一真源在 shared/WebUi，两个平台的壳都以复制方式引用同一份。 -->
+    <Content Include="$(SharedWebUiDir)**/*"
+             Link="WebUi/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
