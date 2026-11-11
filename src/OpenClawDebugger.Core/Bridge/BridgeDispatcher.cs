@@ -14,16 +14,25 @@ public sealed class BridgeDispatcher
     private readonly Func<string, string, JsonElement, IReadOnlyList<BridgeFile>, CancellationToken, Task<object?>> _dispatch;
     private readonly BridgeResponseWriter _responses;
     private readonly BridgeCommandContract _contract;
+    private readonly Uri[] _allowedOrigins;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _operations = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 默认只接受 Windows 上由 WebView2 虚拟主机映射的 https://openclaw.local。
+    /// macOS 侧由回环 HTTP 提供界面，因此由壳在构造时补上自己的来源。
+    /// </summary>
     public BridgeDispatcher(
         Func<string, string, JsonElement, IReadOnlyList<BridgeFile>, CancellationToken, Task<object?>> dispatch,
         BridgeResponseWriter responses,
-        BridgeCommandContract contract)
+        BridgeCommandContract contract,
+        IEnumerable<string>? allowedOrigins = null)
     {
         _dispatch = dispatch;
         _responses = responses;
         _contract = contract;
+        _allowedOrigins = (allowedOrigins ?? ["https://openclaw.local"])
+            .Select(origin => new Uri(origin, UriKind.Absolute))
+            .ToArray();
     }
 
     public async Task HandleAsync(BridgeRequestEnvelope envelope)
@@ -91,10 +100,17 @@ public sealed class BridgeDispatcher
         }
     }
 
-    private static bool IsAllowedSource(string source)
+    private bool IsAllowedSource(string source)
     {
-        return Uri.TryCreate(source, UriKind.Absolute, out var uri) &&
-            uri.Scheme == "https" && uri.Host.Equals("openclaw.local", StringComparison.OrdinalIgnoreCase);
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var uri)) return false;
+        foreach (var origin in _allowedOrigins)
+        {
+            if (string.Equals(origin.Scheme, uri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(origin.Host, uri.Host, StringComparison.OrdinalIgnoreCase) &&
+                origin.Port == uri.Port)
+                return true;
+        }
+        return false;
     }
 
     private sealed record BridgeRequest(

@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace OpenClawDebugger.Shell;
+namespace OpenClawDebugger;
 
 /// <summary>
 /// 把 shared/WebUi 以回环 HTTP 方式提供給 WKWebView。

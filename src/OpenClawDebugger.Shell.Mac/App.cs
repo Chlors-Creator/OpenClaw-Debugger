@@ -3,7 +3,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Themes.Fluent;
 
 namespace OpenClawDebugger.Shell;
-
 internal sealed class App : Application
 {
     public override void Initialize() => Styles.Add(new FluentTheme());
