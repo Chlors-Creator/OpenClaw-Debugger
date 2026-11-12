@@ -25,6 +25,7 @@ public static class SettingsRepository
         var path = Path.Combine(settings.PrivateDirectory, "settings.json");
         if (!File.Exists(path))
         {
+            SshTargetDefaults.Ensure(settings);
             await SaveAsync(settings);
             return settings;
         }
@@ -44,6 +45,8 @@ public static class SettingsRepository
         catch (JsonException)
         {
         }
+        if (SshTargetDefaults.Ensure(settings))
+            await SaveAsync(settings);
         return settings;
     }
 

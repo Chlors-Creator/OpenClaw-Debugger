@@ -1,0 +1,30 @@
+/* 概览页 SSH 目标切换器（本机 / 阿里云） */
+
+.server-picker{position:relative}
+.server-pill{font:inherit;color:var(--ink);text-align:left;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.server-pill:hover{border-color:var(--line-hi);transform:translateY(-1px);box-shadow:0 9px 22px rgba(3,16,13,.18)}
+.server-pill:active{transform:translateY(0) scale(.995)}
+.server-pill:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.server-pill[aria-expanded="true"]{border-color:color-mix(in srgb,var(--accent) 52%,transparent)}
+.server-pill-copy{display:flex;flex-direction:column;align-items:flex-start;min-width:0;flex:1}
+.server-pill-copy strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.server-caret{color:var(--muted2);font-size:10px;line-height:1;transition:transform .18s ease}
+.server-pill[aria-expanded="true"] .server-caret{transform:rotate(180deg)}
+
+.ssh-target-menu{position:absolute;right:0;top:calc(100% + 9px);z-index:6;width:330px;max-width:calc(100vw - 60px);padding:8px;display:flex;flex-direction:column;gap:4px;border:1px solid var(--line-hi);border-radius:15px;background:var(--surface-strong);box-shadow:var(--shadow);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);animation:ssh-target-in .16s ease both}
+.ssh-target-menu[hidden]{display:none}
+@keyframes ssh-target-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+.ssh-target-option{display:flex;align-items:center;gap:11px;width:100%;padding:10px 11px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .16s ease,border-color .16s ease}
+.ssh-target-option:hover{background:color-mix(in srgb,var(--accent) 11%,transparent);border-color:var(--line)}
+.ssh-target-option.active{border-color:color-mix(in srgb,var(--accent) 46%,transparent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+.ssh-target-mark{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:9px;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);font-size:14px}
+.ssh-target-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.ssh-target-copy strong{font:700 11px 'DM Sans',sans-serif}
+.ssh-target-copy code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font:10px 'Cascadia Code',Consolas,monospace}
+.ssh-target-check{margin-left:auto;color:var(--accent);font-size:12px;opacity:0}
+.ssh-target-option.active .ssh-target-check{opacity:1}
+.ssh-target-empty{padding:11px;color:var(--muted2);font-size:10px}
+.ssh-target-hint{padding:9px 11px 3px;border-top:1px solid var(--line);margin-top:3px;color:var(--muted2);font-size:9px;line-height:1.55}
+
+@media(max-width:780px){.server-picker{width:100%}.ssh-target-menu{width:100%;right:auto;left:0;max-width:none}}

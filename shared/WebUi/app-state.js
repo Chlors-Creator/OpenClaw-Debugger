@@ -71,6 +71,7 @@
       stickerController: null,
       uploadController: null,
       backupController: null,
+      sshTargetController: null,
       settingsController: null,
       eventBindings: null
     };

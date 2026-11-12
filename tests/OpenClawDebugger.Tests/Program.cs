@@ -27,6 +27,7 @@ sealed class TestSuite
         await RunAsync("目录筛选控件", SearchFilterContractAsync);
         await RunAsync("模型拖拽自动保存", ModelAutoSaveContractAsync);
         await RunAsync("模型 API 地址仅允许 HTTPS", ModelSecurityTests.AddModelRequiresHttpsAsync);
+        await RunAsync("SSH 目标预设生成", SshTargetSeedAsync);
         Console.WriteLine($"通过 {_passed} 项，失败 {_failed} 项。" );
         if (_failed > 0) Environment.ExitCode = 1;
     }
@@ -245,8 +246,55 @@ sealed class TestSuite
     private static string CoreAssetsDir => Path.Combine(RepoRoot, "src", "OpenClawDebugger.Core", "Assets");
 
     private static void Delete(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { } }
-    private static void Assert(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
-    private static void AssertThrows<T>(Action action) where T : Exception { try { action(); } catch (T) { return; } throw new InvalidOperationException("应抛出 " + typeof(T).Name); }
+    private static Task SshTargetSeedAsync()
+    {
+        var localSaved = new ConnectionSettings
+        {
+            Host = "127.0.0.1",
+            Username = "chlors",
+            WorkspacePath = "/Users/chlors/.openclaw/workspace",
+            StickersPath = "/Users/chlors/.openclaw/workspace/stickers"
+        };
+        var fromLocal = SshTargetDefaults.Create(localSaved);
+        Assert(fromLocal.Count == 2, "应生成两个目标");
+        var local = fromLocal[0];
+        var remote = fromLocal[1];
+        Assert(local.Id == SshTargetDefaults.LocalId && local.Host == "127.0.0.1" && local.Username == "chlors",
+            "已保存的本机连接应保留在本机目标上");
+        Assert(remote.Id == SshTargetDefaults.RemoteId && remote.Host.Length > 0 && remote.Username.Length > 0,
+            "远端目标应有可用地址");
+        Assert(remote.WorkspacePath.StartsWith('/') && remote.StickersPath.StartsWith('/'),
+            "远端目标路径应是绝对路径");
+
+        var remoteSaved = new ConnectionSettings
+        {
+            Host = "10.0.0.8",
+            Username = "ops",
+            Port = 2222,
+            WorkspacePath = "/srv/openclaw/workspace",
+            StickersPath = "/srv/openclaw/workspace/stickers"
+        };
+        var fromRemote = SshTargetDefaults.Create(remoteSaved);
+        Assert(fromRemote[1].Host == "10.0.0.8" && fromRemote[1].Port == 2222,
+            "已保存的远端连接应保留在远端目标上");
+        Assert(fromRemote[0].Host == "127.0.0.1" && fromRemote[0].Username.Length > 0,
+            "本机目标应回落到本机默认值");
+
+        var empty = new UserSettings();
+        SshTargetDefaults.Ensure(empty);
+        Assert(empty.Targets.Count == 2, "空设置应补齐两个目标");
+
+        var configured = new UserSettings
+        {
+            Targets = new List<SshTarget> { new() { Id = "custom", Label = "自定义", Host = "h", Username = "u" } }
+        };
+        SshTargetDefaults.Ensure(configured);
+        Assert(configured.Targets.Count == 1 && configured.Targets[0].Id == "custom",
+            "已配置的目标应原样保留");
+        return Task.CompletedTask;
+    }
+
+    private static void Assert(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }    private static void AssertThrows<T>(Action action) where T : Exception { try { action(); } catch (T) { return; } throw new InvalidOperationException("应抛出 " + typeof(T).Name); }
     private static async Task AssertThrowsAsync<T>(Func<Task> action) where T : Exception { try { await action(); } catch (T) { return; } throw new InvalidOperationException("应抛出 " + typeof(T).Name); }
 }
 

@@ -538,7 +538,12 @@
       syncBackupButton, setBusy, isConnected: () => $('.connection-chip').classList.contains('connected')
     });
     appState.settingsController = window.OpenClawSettingsController.create({
-      $, bridgeCall, state: appState.settingsModel, setStatus, showToast, reportError, connectServer, setBusy
+      $, bridgeCall, state: appState.settingsModel, setStatus, showToast, reportError, connectServer, setBusy,
+      syncTargetPicker: () => appState.sshTargetController && appState.sshTargetController.sync()
+    });
+    appState.sshTargetController = window.OpenClawSshTargetController.create({
+      $, bridgeCall, state: appState.settingsModel,
+      applyTarget: target => appState.settingsController.applyTarget(target)
     });
     appState.eventBindings = window.OpenClawEventBindings.create({
       $, $$, appState, switchTab, connectServer, toggleConnection, syncConnectionButton, toggleBackupPause, cancelBackup,
@@ -557,6 +562,7 @@
     try {
       const state = await bridgeCall('initialize', {});
       fillSettings(state.settings.connection, state.settings.backupRetentionCount);
+      appState.sshTargetController?.setTargets(state.settings.targets);
       appState.settingsController.fillFirewallSettings(state.settings.firewall, state.aliyunCredentialsConfigured);
       $('#privatePath').textContent = state.privateDirectory;
       $('#backupPath').textContent = state.backupDirectory;

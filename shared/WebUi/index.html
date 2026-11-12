@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="custom-artifacts.css">
   <link rel="stylesheet" href="skill-community.css">
   <link rel="stylesheet" href="firewall.css">
+  <link rel="stylesheet" href="ssh-target.css">
   <script src="host-shim.js" defer></script>
   <script src="bridge-contract.generated.js" defer></script>
   <script src="bridge.js" defer></script>
@@ -52,6 +53,7 @@
   <script src="sticker-controller.js" defer></script>
   <script src="upload-controller.js" defer></script>
   <script src="backup-controller.js" defer></script>
+  <script src="ssh-target-controller.js" defer></script>
   <script src="settings-controller.js" defer></script>
   <script src="event-bindings.js" defer></script>
   <script src="app.js" defer></script>
@@ -101,7 +103,7 @@
 
     <main class="page-stack">
       <section class="page active" id="page-overview">
-        <div class="welcome-row"><div><div class="eyebrow">WORKSPACE OVERVIEW</div><h2>服务器工作台</h2><p>管理 OpenClaw 记忆、表情包标签，并在本机保留加密回滚快照。</p></div><div class="server-pill"><span class="server-glyph">⌘</span><div><small>SSH 目标</small><strong id="targetSummary">未配置 SSH 目标</strong></div></div></div>
+        <div class="welcome-row"><div><div class="eyebrow">WORKSPACE OVERVIEW</div><h2>服务器工作台</h2><p>管理 OpenClaw 记忆、表情包标签，并在本机保留加密回滚快照。</p></div><div class="server-picker"><button class="server-pill" id="sshTargetButton" type="button" aria-haspopup="listbox" aria-expanded="false" title="切换 SSH 目标"><span class="server-glyph">⌘</span><span class="server-pill-copy"><small id="targetLabel">SSH 目标</small><strong id="targetSummary">未配置 SSH 目标</strong></span><span class="server-caret" aria-hidden="true">▾</span></button><div class="ssh-target-menu" id="sshTargetMenu" role="listbox" aria-label="选择 SSH 目标" hidden></div></div></div>
         <div class="metric-grid">
           <article class="metric-card glass"><div class="metric-icon cyan">▤</div><div><span>可编辑记忆</span><strong id="memoryCount">—</strong><small>工作区 Markdown</small></div></article>
           <article class="metric-card glass"><div class="metric-icon coral">☺</div><div><span>表情包图片</span><strong id="stickerCount">—</strong><small>包含 GIF 动图</small></div></article>

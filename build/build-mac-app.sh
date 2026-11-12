@@ -111,7 +111,12 @@ codesign --verify --verbose=1 "$APP" 2>&1 | tail -1
 if [ "$INSTALL" = "1" ]; then
   echo "==> 安装到 /Applications"
   rm -rf "/Applications/OpenClawDebugger.app"
-  cp -R "$APP" "/Applications/"
+  # 必须用 ditto：cp -R 会丢掉 _CodeSignature 相关元数据，导致 ad-hoc 签名失效。
+  ditto "$APP" "/Applications/OpenClawDebugger.app"
+  codesign --verify "/Applications/OpenClawDebugger.app" || {
+    echo "安装后签名校验失败" >&2
+    exit 1
+  }
   echo "完成：/Applications/OpenClawDebugger.app"
 else
   echo "完成：$APP"

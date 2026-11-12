@@ -93,9 +93,17 @@ public sealed class SettingsService
 
     private static void ValidateRemotePath(string path, string label)
     {
-        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/') || path.Contains('\n') || path.Contains('\r') || path.Contains('\0'))
+        var invalid = string.IsNullOrWhiteSpace(path)
+            || path.Contains('\n') || path.Contains('\r') || path.Contains('\0')
+            || !IsAbsolutePath(path);
+        if (invalid)
             throw new InvalidDataException(label + "路径必须是合法的绝对路径。");
     }
+
+    /// <summary>POSIX 绝对路径或 Windows 盘符路径（连本机 Windows OpenSSH 时会出现后者）。</summary>
+    private static bool IsAbsolutePath(string path) =>
+        path.StartsWith('/') ||
+        (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '/' or '\\');
 
     private sealed class FirewallSettingsSubmission
     {

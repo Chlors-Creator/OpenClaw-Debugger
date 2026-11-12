@@ -1,7 +1,8 @@
 (function () {
   'use strict';
   function create(deps) {
-    const { $, bridgeCall, state, setStatus, showToast, reportError, connectServer, setBusy } = deps;
+    const { $, bridgeCall, state, setStatus, showToast, reportError, connectServer, setBusy, syncTargetPicker } = deps;
+    const refreshTargetPicker = () => { if (typeof syncTargetPicker === 'function') syncTargetPicker(); };
     function getConnectionSettings() {
       return {
         host: $('#hostInput').value.trim(),
@@ -20,9 +21,7 @@
       $('#backupRetentionInput').value = retentionOverride || state.value.backupRetentionCount || 5;
       $('#workspaceInput').value = state.value.workspacePath || '/home/user/.openclaw/workspace';
       $('#stickersInput').value = state.value.stickersPath || '/home/user/.openclaw/workspace/stickers';
-      $('#targetSummary').textContent = state.value.username && state.value.host
-        ? state.value.username + '@' + state.value.host
-        : '未配置 SSH 目标';
+      refreshTargetPicker();
     }
     async function saveConnectionSettings(andConnect) {
       try {
@@ -30,10 +29,29 @@
         fillSettings(result.settings.connection, result.settings.backupRetentionCount);
         $('#privatePath').textContent = result.privateDirectory;
         $('#backupPath').textContent = result.backupDirectory;
-        $('#targetSummary').textContent = state.value.username + '@' + state.value.host;
+        refreshTargetPicker();
         setStatus('设置已保存到仓库外的私密目录。');
         if (andConnect) await connectServer(); else showToast('连接设置已保存。');
       } catch (error) { reportError(error); }
+    }
+    // 概览页切换 SSH 目标：整组连接参数一起替换（不同服务器的 OpenClaw 目录布局不同），再保存并重连。
+    async function applyTarget(target) {
+      if (!target || !target.host) return;
+      const next = Object.assign({}, state.value, {
+        host: target.host,
+        username: target.username,
+        port: Number(target.port) || 22,
+        workspacePath: target.workspacePath,
+        stickersPath: target.stickersPath
+      });
+      state.value = next;
+      $('#hostInput').value = next.host;
+      $('#usernameInput').value = next.username;
+      $('#portInput').value = next.port;
+      $('#workspaceInput').value = next.workspacePath;
+      $('#stickersInput').value = next.stickersPath;
+      refreshTargetPicker();
+      await saveConnectionSettings(true);
     }
     function getFirewallSettings() {
       return {
@@ -83,7 +101,7 @@
       } finally { setBusy(false); }
     }
     return {
-      getConnectionSettings, fillSettings, saveConnectionSettings,
+      getConnectionSettings, fillSettings, saveConnectionSettings, applyTarget,
       fillFirewallSettings, saveFirewallSettings, syncSshWhitelist
     };
   }
