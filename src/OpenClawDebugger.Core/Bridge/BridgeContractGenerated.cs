@@ -549,6 +549,15 @@ internal static class BridgeContractGenerated
                 {
                 }
             },
+            ["openMemoryGalaxy"] = new BridgeCommandDefinition
+            {
+                Mode = "local",
+                Domain = "local",
+                TimeoutMs = 30000,
+                Payload = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                }
+            },
             ["openBackupFolder"] = new BridgeCommandDefinition
             {
                 Mode = "local",

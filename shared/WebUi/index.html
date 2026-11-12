@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-src 'self' http://127.0.0.1:8791 http://localhost:8791; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>OpenClaw Debugger</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="styles-overrides.css">
@@ -117,10 +117,14 @@
       </section>
 
       <section class="page" id="page-memory">
-        <div class="section-heading"><div><div class="eyebrow">MEMORY FILES</div><h2>记忆管理</h2><p>选择 Markdown 文件查看内容。保存前会展示差异，并检查服务器版本。</p></div><span class="plugin-count-badge"><strong id="memoryPageCount">0</strong> 个可编辑文件</span></div>
-        <div class="workspace-layout">
+        <div class="section-heading"><div><div class="eyebrow">MEMORY FILES</div><h2>记忆管理</h2><p>选择 Markdown 文件查看内容。保存前会展示差异，并检查服务器版本。</p></div><div class="button-row"><button class="button button-quiet" id="openMemoryGalaxyButton" type="button">✦ 记忆星海</button><span class="plugin-count-badge"><strong id="memoryPageCount">0</strong> 个可编辑文件</span></div></div>
+        <div class="workspace-layout" id="memoryWorkspace">
           <aside class="file-sidebar panel glass"><div class="side-title"><strong>工作区文件</strong><span id="memoryListCount">0</span></div><label class="search-box"><span>⌕</span><input id="memorySearch" type="search" placeholder="筛选文件"></label><div id="memoryList" class="file-list empty-state">连接服务器后读取文件</div></aside>
           <article class="editor-panel panel glass"><div class="editor-toolbar"><div><div class="eyebrow">REMOTE DOCUMENT</div><h3 id="memoryTitle">选择左侧文件</h3><div class="muted small" id="memoryInfo">内容会在读取后显示。</div></div><div class="button-row"><button class="button button-quiet" id="editMemoryButton" disabled>编辑</button><button class="button button-quiet" id="cancelMemoryButton" disabled>放弃</button><button class="button button-primary" id="saveMemoryButton" disabled>保存修改</button></div></div><textarea id="memoryEditor" class="code-editor" spellcheck="false" placeholder="选择文件后，内容会显示在这里。" readonly></textarea><div class="editor-footer"><span id="memoryEditorState">只读预览</span><span>UTF-8 · Markdown</span></div></article>
+        </div>
+        <div class="memory-galaxy-panel panel glass" id="memoryGalaxyPanel" hidden>
+          <div class="memory-galaxy-loading" id="memoryGalaxyLoading">正在启动记忆星海…</div>
+          <iframe id="memoryGalaxyFrame" title="记忆星海" hidden></iframe>
         </div>
       </section>
 

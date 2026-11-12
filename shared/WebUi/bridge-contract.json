@@ -52,6 +52,7 @@
     "toggleBackupPause": { "mode": "control", "domain": "control", "timeoutMs": 15000, "payload": {} },
     "cancelBackup": { "mode": "control", "domain": "control", "timeoutMs": 15000, "payload": {} },
     "openPrivateFolder": { "mode": "local", "domain": "local", "timeoutMs": 15000, "payload": {} },
+    "openMemoryGalaxy": { "mode": "local", "domain": "local", "timeoutMs": 30000, "payload": {} },
     "openBackupFolder": { "mode": "local", "domain": "local", "timeoutMs": 15000, "payload": {} },
     "exportLogs": { "mode": "local", "domain": "local", "timeoutMs": 60000, "payload": {} },
     "draftState": { "mode": "local", "domain": "local", "timeoutMs": 15000, "payload": { "dirty": "boolean" } },

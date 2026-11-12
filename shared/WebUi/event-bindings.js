@@ -38,6 +38,46 @@
     $('#saveFirewallSettingsButton').addEventListener('click', () => appState.settingsController.saveFirewallSettings());
     $('#syncSshWhitelistButton').addEventListener('click', () => appState.settingsController.syncSshWhitelist());
     $('#openPrivateButton').addEventListener('click', () => bridgeCall('openPrivateFolder', {}).catch(reportError));
+    const memoryWorkspace = $('#memoryWorkspace');
+    const memoryGalaxyPanel = $('#memoryGalaxyPanel');
+    const memoryGalaxyFrame = $('#memoryGalaxyFrame');
+    const memoryGalaxyLoading = $('#memoryGalaxyLoading');
+    const openMemoryGalaxyButton = $('#openMemoryGalaxyButton');
+    let memoryGalaxyLoaded = false;
+    openMemoryGalaxyButton.addEventListener('click', async () => {
+      // 再次点击：关闭星海，恢复工作区文件列表 + 编辑器。
+      if (!memoryGalaxyPanel.hidden) {
+        memoryGalaxyPanel.hidden = true;
+        memoryWorkspace.hidden = false;
+        openMemoryGalaxyButton.classList.remove('memory-galaxy-active');
+        openMemoryGalaxyButton.textContent = '✦ 记忆星海';
+        return;
+      }
+      // 首次点击：就地切换到星海面板，不弹窗。
+      try {
+        memoryWorkspace.hidden = true;
+        memoryGalaxyPanel.hidden = false;
+        memoryGalaxyLoading.hidden = false;
+        memoryGalaxyFrame.hidden = true;
+        memoryGalaxyLoading.textContent = '正在启动记忆星海…';
+        if (!memoryGalaxyLoaded) {
+          const result = await bridgeCall('openMemoryGalaxy', {});
+          if (!result || !result.url) throw new Error('记忆星海未返回可用地址。');
+          memoryGalaxyFrame.src = result.url;
+          memoryGalaxyLoaded = true;
+        }
+        memoryGalaxyFrame.hidden = false;
+        memoryGalaxyLoading.hidden = true;
+        openMemoryGalaxyButton.classList.add('memory-galaxy-active');
+        openMemoryGalaxyButton.textContent = '✕ 关闭星海';
+      } catch (error) {
+        memoryGalaxyPanel.hidden = true;
+        memoryWorkspace.hidden = false;
+        memoryGalaxyLoading.textContent = '记忆星海打开失败：' + (error && error.message ? error.message : String(error));
+        memoryGalaxyLoading.hidden = false;
+        reportError(error);
+      }
+    });
     $('#exportLogsButton').addEventListener('click', async () => {
       try {
         const result = await bridgeCall('exportLogs', {});

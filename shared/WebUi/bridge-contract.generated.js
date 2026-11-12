@@ -430,6 +430,12 @@
       "timeoutMs": 15000,
       "payload": {}
     },
+    "openMemoryGalaxy": {
+      "mode": "local",
+      "domain": "local",
+      "timeoutMs": 30000,
+      "payload": {}
+    },
     "openBackupFolder": {
       "mode": "local",
       "domain": "local",

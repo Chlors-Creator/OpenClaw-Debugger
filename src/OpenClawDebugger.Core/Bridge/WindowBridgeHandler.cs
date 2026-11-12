@@ -25,6 +25,7 @@ public sealed class WindowBridgeHandler
     public void Register(BridgeCommandRouter router)
     {
         router.Map("openPrivateFolder", _ => OpenPrivateFolder());
+        router.Map("openMemoryGalaxy", OpenMemoryGalaxy);
         router.Map("draftState", SetDraftState);
         router.Map("close", Close);
     }
@@ -34,6 +35,14 @@ public sealed class WindowBridgeHandler
         var path = _privateDirectory();
         _openFolder(path);
         return Task.FromResult<object?>(new { opened = true });
+    }
+
+    private async Task<object?> OpenMemoryGalaxy(JsonElement _, CancellationToken cancellationToken)
+    {
+        var url = await MemoryGalaxyLauncher.EnsureRunningAsync(cancellationToken).ConfigureAwait(false);
+        if (url is null)
+            throw new InvalidOperationException("无法启动「记忆星海」面板。请确认 ~/.openclaw/webui/memory-galaxy 已就绪且本机装有 node。");
+        return new { url };
     }
 
     private Task<object?> SetDraftState(JsonElement payload)
