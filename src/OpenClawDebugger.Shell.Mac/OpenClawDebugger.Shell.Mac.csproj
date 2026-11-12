@@ -2,20 +2,20 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-macos</TargetFramework>
+    <!-- Build with the 27.2 SDK while allowing the app to run on macOS 27.0.x. -->
+    <SupportedOSPlatformVersion>27.0</SupportedOSPlatformVersion>
     <RootNamespace>OpenClawDebugger</RootNamespace>
     <AssemblyName>OpenClawDebugger</AssemblyName>
-    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationDisplayName>OpenClaw Debugger</ApplicationDisplayName>
+    <ApplicationId>com.openclaw.debugger</ApplicationId>
+    <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <EnableCodeSigning>false</EnableCodeSigning>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PublishTrimmed>true</PublishTrimmed>
+    <LinkMode>None</LinkMode>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Avalonia" />
-    <PackageReference Include="Avalonia.Desktop" />
-    <PackageReference Include="Avalonia.Themes.Fluent" />
-    <PackageReference Include="Avalonia.Controls.WebView" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OpenClawDebugger.Core\OpenClawDebugger.Core.csproj" />

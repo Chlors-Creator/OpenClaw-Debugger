@@ -1,17 +1,22 @@
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text.Json;
-using Avalonia.Controls;
-using Avalonia.Threading;
+using AppKit;
+using CoreGraphics;
+using CoreFoundation;
+using Foundation;
+using WebKit;
 
 namespace OpenClawDebugger;
 
 /// <summary>
-/// macOS 壳。职责只有三件：开窗口、托管 WKWebView、装配 Core 的服务并用桥接把两边连起来。
-/// 组合顺序与 Windows 壳保持一致，便于两边对照维护。
+/// macOS 壳主窗口：纯 AppKit 的 NSWindow + WKWebView。
+/// 职责只有三件：开窗口、托管 WKWebView、装配 Core 的服务并用桥接把两边连起来。
+/// 标题栏、红绿灯、圆角、拖动全部由原生 NSWindow 提供。
 /// </summary>
-internal sealed class MainWindow : Window
+internal sealed class MainWindow : NSWindow, IWKScriptMessageHandler
 {
+    private const string ScriptMessageHandlerName = "openclawHost";
+
     private readonly BridgeResponseWriter _bridgeResponses = new();
     private readonly SettingsService _settingsService = new();
     private readonly HttpClient _clawHubHttpClient;
@@ -23,7 +28,7 @@ internal sealed class MainWindow : Window
     private readonly RemoteTaskScheduler _taskScheduler;
     private readonly CustomArtifactService _customArtifacts;
     private readonly ConnectionCoordinator _connection;
-    private readonly NativeWebView _webView = new();
+    private readonly WKWebView _webView;
     private readonly object _busySync = new();
 
     private CustomArtifactBridgeHandler? _customArtifactBridge;
@@ -40,17 +45,22 @@ internal sealed class MainWindow : Window
     private bool _probed;
 
     public MainWindow()
+        : base(
+            new CGRect(0, 0, 1280, 840),
+            NSWindowStyle.Titled | NSWindowStyle.Closable | NSWindowStyle.Miniaturizable |
+            NSWindowStyle.Resizable | NSWindowStyle.FullSizeContentView,
+            NSBackingStore.Buffered,
+            false)
     {
         Title = "OpenClaw Debugger";
-        Width = 1280;
-        Height = 840;
-        MinWidth = 960;
-        MinHeight = 640;
+        MinSize = new CGSize(960, 640);
 
-        // 无标题栏但保留原生红绿灯 + 圆角：让内容区延伸到系统标题栏区域。
-        // 注意这里刻意「不」设 WindowDecorations.None —— 那会连红绿灯一起干掉。
-        // 只设 ExtendClientAreaToDecorationsHint，配合 Opened 里的原生 titlebarAppearsTransparent。
-        ExtendClientAreaToDecorationsHint = true;
+        // 原生无标题栏：标题栏透明 + 隐藏标题文字，但保留红绿灯、圆角与标题栏高度/拖动区。
+        TitlebarAppearsTransparent = true;
+        TitleVisibility = NSWindowTitleVisibility.Hidden;
+        MovableByWindowBackground = true;
+
+        _webView = CreateWebView();
 
         _clawHubHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         _egressIpHttpClient = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false })
@@ -76,78 +86,48 @@ internal sealed class MainWindow : Window
             new MacSecretProtector(credentialStore),
             new SipsThumbnailEncoder());
 
-        Content = _webView;
-        _webView.WebMessageReceived += OnWebMessageReceived;
-        _webView.NewWindowRequested += (_, e) => e.Handled = true;
-        Opened += async (_, _) =>
-        {
-            ApplyFramelessNativeBehavior();
-            await InitializeAsync();
-        };
-        Closing += OnClosing;
+        ContentView = _webView;
+
+        // 窗口即将关闭时清理资源（等价于原 Avalonia 的 Closing）。
+        NSNotificationCenter.DefaultCenter.AddObserver(NSWindow.WillCloseNotification, _ => Cleanup(), this);
+
+        // 初始化在窗口首次显示前执行（等价于原 Avalonia 的 Opened）。
+        _ = InitializeAsync();
     }
 
-    /// <summary>
-    /// 无标题栏（保留红绿灯 + 圆角）的原生行为：
-    /// 让内容铺满整个窗口，标题栏透明，但保留 macOS 原生的红黄绿按钮与窗口圆角。
-    /// 仅在 macOS 上生效，其它平台为空操作。
-    /// </summary>
-    private void ApplyFramelessNativeBehavior()
+    private WKWebView CreateWebView()
     {
-        if (!OperatingSystem.IsMacOS()) return;
+        var configuration = new WKWebViewConfiguration();
+        configuration.UserContentController.AddScriptMessageHandler(this, ScriptMessageHandlerName);
+        configuration.UserContentController.AddUserScript(new WKUserScript(
+            new NSString("document.documentElement.classList.add('mac-window');"),
+            WKUserScriptInjectionTime.AtDocumentStart,
+            false));
 
-        try
-        {
-            // 通过 NSApp.keyWindow 拿到当前窗口的原生 NSWindow 指针，
-            // 避免依赖 Avalonia 未公开的原生句柄接口。
-            var nsApp = ObjCRuntime.objc_msgSend(ObjCRuntime.objc_getClass("NSApplication"), Sel("sharedApplication"));
-            var nsWindow = ObjCRuntime.objc_msgSend(nsApp, Sel("keyWindow"));
-            if (nsWindow == IntPtr.Zero) return;
-
-            // titlebarAppearsTransparent：标题栏透明（标题文字消失，但红绿灯保留）
-            ObjCRuntime.objc_msgSend_bool(nsWindow, Sel("setTitlebarAppearsTransparent:"), true);
-            // titleVisibility = hidden：隐藏标题文字（等价 NSWindowTitleHidden）
-            ObjCRuntime.objc_msgSend_long(nsWindow, Sel("setTitleVisibility:"), 1);
-            // fullSizeContentView：内容区铺满整窗（含标题栏下方）
-            var styleMask = ObjCRuntime.objc_msgSend_ret(nsWindow, Sel("styleMask"));
-            ObjCRuntime.objc_msgSend_ulong(nsWindow, Sel("setStyleMask:"),
-                (ulong)(styleMask | NSWindowStyleMaskFullSizeContentView));
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[shell] 应用无标题栏原生行为失败：{ex.Message}");
-        }
+        var webView = new WKWebView(CGRect.Empty, configuration);
+        webView.AutoresizingMask = NSViewResizingMask.WidthSizable | NSViewResizingMask.HeightSizable;
+        webView.NavigationDelegate = new NavigationDelegate(this);
+        return webView;
     }
 
-    // NSWindowStyleMaskFullSizeContentView = 1 << 15
-    private const nint NSWindowStyleMaskFullSizeContentView = 1 << 15;
-
-    private static IntPtr Sel(string name) => ObjCRuntime.sel_registerName(name);
-
-    private static class ObjCRuntime
+    /// <summary>IWKScriptMessageHandler：接收前端 window.webkit.messageHandlers.openclawHost.postMessage(...)。</summary>
+    public void DidReceiveScriptMessage(WKUserContentController userContentController, WKScriptMessage message)
     {
-        private const string ObjCLib = "/usr/lib/libobjc.A.dylib";
+        if (message.Name != ScriptMessageHandlerName) return;
+        if (message.Body is not NSString body) return;
 
-        [DllImport(ObjCLib, EntryPoint = "objc_getClass")]
-        public static extern IntPtr objc_getClass(string name);
+        var dispatcher = _bridgeDispatcher;
+        if (dispatcher is null || _server is null) return;
 
-        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-        public static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+        var text = body.ToString();
+        if (string.IsNullOrEmpty(text)) return;
+        if (Environment.GetEnvironmentVariable("OPENCLAW_BRIDGE_LOG") == "1")
+            Console.WriteLine($"[bridge←ui] {(text.Length <= 300 ? text : text[..300] + "…")}");
 
-        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-        public static extern IntPtr objc_msgSend_bool(IntPtr receiver, IntPtr selector, bool value);
-
-        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-        public static extern nint objc_msgSend_ret(IntPtr receiver, IntPtr selector);
-
-        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-        public static extern IntPtr objc_msgSend_long(IntPtr receiver, IntPtr selector, long value);
-
-        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
-        public static extern IntPtr objc_msgSend_ulong(IntPtr receiver, IntPtr selector, ulong value);
-
-        [DllImport(ObjCLib, EntryPoint = "sel_registerName")]
-        public static extern IntPtr sel_registerName(string name);
+        // WKWebView 的消息不带来源地址，由壳声明自己的来源；
+        // 越界导航由 NavigationDelegate 兜回，保证只有本地页面能持有这条通道。
+        var envelope = new BridgeRequestEnvelope(_server.BaseUri.ToString(), text, []);
+        _ = dispatcher.HandleAsync(envelope);
     }
 
     private async Task InitializeAsync()
@@ -164,12 +144,13 @@ internal sealed class MainWindow : Window
             _connection.Initialize(_settings);
 
             _commandRouter = CreateCommandRouter();
+            var webUiDir = ResolveWebUiDirectory();
             _bridgeContract = BridgeCommandContract.Load(
-                Path.Combine(AppContext.BaseDirectory, "WebUi", "bridge-contract.json"));
+                Path.Combine(webUiDir, "bridge-contract.json"));
             _bridgeContract.ValidateRegisteredCommands(_commandRouter.Commands);
 
-            _server = LocalWebUiServer.Start(Path.Combine(AppContext.BaseDirectory, "WebUi"));
-            _bridgeResponses.Attach(new AvaloniaBridgeTransport(_webView));
+            _server = LocalWebUiServer.Start(webUiDir);
+            _bridgeResponses.Attach(new NativeBridgeTransport(_webView));
             _bridgeDispatcher = new BridgeDispatcher(
                 DispatchAsync,
                 _bridgeResponses,
@@ -178,9 +159,11 @@ internal sealed class MainWindow : Window
 
             // 每次启动换一个查询串，避免 WKWebView 复用旧脚本缓存。
             var cacheKey = File.GetLastWriteTimeUtc(typeof(MainWindow).Assembly.Location).Ticks;
-            _webView.NavigationCompleted += OnNavigationCompleted;
-            _webView.Source = new Uri(_server.BaseUri, "index.html?v=" + cacheKey.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var url = new Uri(_server.BaseUri, "index.html?v=" + cacheKey.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Console.WriteLine($"[shell] 界面服务已就绪：{_server.BaseUri}");
+            // WKWebView 加载必须主线程。
+            DispatchQueue.MainQueue.DispatchAsync(() =>
+                _webView.LoadRequest(new NSUrlRequest(new NSUrl(url.ToString()))));
             StartSelfTestIfRequested();
         }
         catch (Exception ex)
@@ -221,83 +204,6 @@ internal sealed class MainWindow : Window
             lines.Add($"gatewayPort={port} listening={listening} waited={watch.Elapsed.TotalSeconds:F0}s");
             await File.WriteAllLinesAsync(path, lines);
         });
-    }
-
-    private void OnWebMessageReceived(object? sender, WebMessageReceivedEventArgs e)
-    {
-        var dispatcher = _bridgeDispatcher;
-        if (dispatcher is null || _server is null) return;
-
-        var body = e.Body;
-        if (string.IsNullOrEmpty(body)) return;
-        if (Environment.GetEnvironmentVariable("OPENCLAW_BRIDGE_LOG") == "1")
-            Console.WriteLine($"[bridge←ui] {(body.Length <= 300 ? body : body[..300] + "…")}");
-
-        // WKWebView 的消息事件不带来源地址，由壳声明自己的来源；
-        // 越界导航由 OnNavigationCompleted 兜回，保证只有本地页面能持有这条通道。
-        var envelope = new BridgeRequestEnvelope(_server.BaseUri.ToString(), body, []);
-        _ = dispatcher.HandleAsync(envelope);
-    }
-
-    private async void OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs e)
-    {
-        if (_server is null) return;
-
-        if (!e.IsSuccess)
-        {
-            Console.Error.WriteLine("[shell] 页面加载失败");
-            return;
-        }
-
-        try
-        {
-            var href = await _webView.InvokeScript("location.href");
-            if (href is null || !href.Contains(_server.BaseUri.Authority, StringComparison.Ordinal))
-            {
-                Console.Error.WriteLine($"[shell] 拦截越界导航：{href}");
-                _webView.Source = _server.BaseUri;
-                return;
-            }
-
-            if (_probed) return;
-            _probed = true;
-
-            var probe = await _webView.InvokeScript("""
-                JSON.stringify({
-                  title: document.title,
-                  shim: !!(window.chrome && window.chrome.webview),
-                  bridge: typeof window.OpenClawBridge,
-                  body: document.body ? document.body.childElementCount : -1,
-                  status: (document.querySelector('#statusText') || {}).textContent || '',
-                  connection: (document.querySelector('#connectionStatus') || {}).textContent || '',
-                  memory: (document.querySelector('#memoryCount') || {}).textContent || '',
-                  stickers: (document.querySelector('#stickerCount') || {}).textContent || '',
-                  tabs: document.querySelectorAll('[role=tab], .tab').length,
-                  toast: (document.querySelector('#toast') || {}).textContent || '',
-                  bootError: document.body.dataset.bootError || '',
-                  height: document.body.scrollHeight,
-                  background: getComputedStyle(document.body).backgroundColor,
-                  font: getComputedStyle(document.body).fontFamily.slice(0, 40)
-                })
-                """);
-            Console.WriteLine($"[shell] 界面就绪：{probe}");
-
-            if (Environment.GetEnvironmentVariable("OPENCLAW_SMOKE") == "1")
-            {
-                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
-                timer.Tick += (_, _) =>
-                {
-                    timer.Stop();
-                    Console.WriteLine("[smoke] 自动退出");
-                    Close();
-                };
-                timer.Start();
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[shell] 页面就绪检查失败：{ex.Message}");
-        }
     }
 
     private async Task<object?> DispatchAsync(
@@ -345,6 +251,24 @@ internal sealed class MainWindow : Window
             return await (_connection.Stickers ?? throw new InvalidOperationException("表情包服务未初始化。"))
                 .UploadFileAsync(payload, localPath ?? throw new InvalidDataException("没有收到本地上传文件。"), cancellationToken);
         return await router.DispatchAsync(command, payload, cancellationToken);
+    }
+
+    /// <summary>
+    /// 定位 WebUi 资源目录。在 .app bundle 里位于 Contents/Resources/WebUi，
+    /// 直接跑（dotnet run）时位于 AppContext.BaseDirectory/WebUi。
+    /// </summary>
+    private static string ResolveWebUiDirectory()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var direct = Path.Combine(baseDir, "WebUi");
+        if (Directory.Exists(direct)) return direct;
+
+        // .app bundle：Contents/MacOS 的上上级是 Contents，其下 Resources/WebUi。
+        var resources = Path.Combine(baseDir, "..", "Resources", "WebUi");
+        var full = Path.GetFullPath(resources);
+        if (Directory.Exists(full)) return full;
+
+        return direct; // 最后回退，让后续代码抛出具象错误。
     }
 
     private BridgeCommandRouter CreateCommandRouter()
@@ -399,7 +323,7 @@ internal sealed class MainWindow : Window
         _bridgeResponses.SendProgress("busy", new { busy = _busy });
     }
 
-    private void OnClosing(object? sender, WindowClosingEventArgs e)
+    private void Cleanup()
     {
         // macOS 上没有阻塞式确认框，未保存草稿改为记日志后放行，避免关不掉窗口。
         if (!_closingApproved && _hasDrafts)
@@ -411,5 +335,82 @@ internal sealed class MainWindow : Window
         _clawHubHttpClient.Dispose();
         _egressIpHttpClient.Dispose();
         if (_server is not null) _ = _server.DisposeAsync();
+    }
+
+    /// <summary>WKNavigationDelegate：页面加载完成后做越界导航兜底与界面就绪检查。</summary>
+    private sealed class NavigationDelegate(MainWindow owner) : WKNavigationDelegate
+    {
+        public override void DidFinishNavigation(WKWebView webView, WKNavigation? navigation)
+        {
+            _ = ProbeAsync(webView);
+        }
+
+        private async Task ProbeAsync(WKWebView webView)
+        {
+            var server = owner._server;
+            if (server is null) return;
+
+            try
+            {
+                // WKWebView API 必须主线程调用，这里显式切回主线程再执行。
+                var href = await EvaluateOnMainThreadAsync(webView, "location.href");
+                var hrefText = href?.ToString() ?? "";
+                if (string.IsNullOrEmpty(hrefText) || !hrefText.Contains(server.BaseUri.Authority, StringComparison.Ordinal))
+                {
+                    Console.Error.WriteLine($"[shell] 拦截越界导航：{hrefText}");
+                    DispatchQueue.MainQueue.DispatchAsync(() =>
+                        webView.LoadRequest(new NSUrlRequest(new NSUrl(server.BaseUri.ToString()))));
+                    return;
+                }
+
+                if (owner._probed) return;
+                owner._probed = true;
+
+                var probe = await EvaluateOnMainThreadAsync(webView, """
+                    JSON.stringify({
+                      title: document.title,
+                      shim: !!(window.chrome && window.chrome.webview),
+                      bridge: typeof window.OpenClawBridge,
+                      body: document.body ? document.body.childElementCount : -1,
+                      status: (document.querySelector('#statusText') || {}).textContent || '',
+                      connection: (document.querySelector('#connectionStatus') || {}).textContent || '',
+                      memory: (document.querySelector('#memoryCount') || {}).textContent || '',
+                      stickers: (document.querySelector('#stickerCount') || {}).textContent || '',
+                      tabs: document.querySelectorAll('[role=tab], .tab').length,
+                      toast: (document.querySelector('#toast') || {}).textContent || '',
+                      bootError: document.body.dataset.bootError || '',
+                      height: document.body.scrollHeight,
+                      background: getComputedStyle(document.body).backgroundColor,
+                      font: getComputedStyle(document.body).fontFamily.slice(0, 40)
+                    })
+                    """);
+                Console.WriteLine($"[shell] 界面就绪：{probe}");
+
+                if (Environment.GetEnvironmentVariable("OPENCLAW_SMOKE") == "1")
+                    _ = Task.Delay(6000).ContinueWith(_ => DispatchQueue.MainQueue.DispatchAsync(owner.Close));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[shell] 页面就绪检查失败：{ex.Message}");
+            }
+        }
+
+        private static Task<NSObject> EvaluateOnMainThreadAsync(WKWebView webView, string script)
+        {
+            var tcs = new TaskCompletionSource<NSObject>(TaskCreationOptions.RunContinuationsAsynchronously);
+            DispatchQueue.MainQueue.DispatchAsync(async () =>
+            {
+                try
+                {
+                    var result = await webView.EvaluateJavaScriptAsync(script);
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+            return tcs.Task;
+        }
     }
 }

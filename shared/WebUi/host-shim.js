@@ -2,7 +2,7 @@
  * 宿主桥接垫片（host shim）
  *
  * Windows 侧由 WebView2 原生提供 window.chrome.webview；
- * macOS 侧使用 Avalonia NativeWebView（WKWebView），只提供 invokeCSharpAction()。
+ * macOS 侧使用原生 WKWebView，通过 window.webkit.messageHandlers 发消息给宿主。
  * 这里把前者映射到后者，使 bridge.js 无需任何平台分支。
  *
  * 必须在 bridge.js 之前加载，因为 bridge.js 在 create() 时会检测并注册监听。
@@ -18,11 +18,13 @@
 
   function postToHost(message) {
     var text = typeof message === 'string' ? message : JSON.stringify(message);
-    if (typeof window.invokeCSharpAction === 'function') {
-      window.invokeCSharpAction(text);
+    if (window.webkit && window.webkit.messageHandlers &&
+        window.webkit.messageHandlers.openclawHost &&
+        typeof window.webkit.messageHandlers.openclawHost.postMessage === 'function') {
+      window.webkit.messageHandlers.openclawHost.postMessage(text);
       return;
     }
-    throw new Error('宿主桥接不可用：当前环境没有 invokeCSharpAction。');
+    throw new Error('宿主桥接不可用：当前环境没有 WKWebView message handler。');
   }
 
   window.chrome = window.chrome || {};

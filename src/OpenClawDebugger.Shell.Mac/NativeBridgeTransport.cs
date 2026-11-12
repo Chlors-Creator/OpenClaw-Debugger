@@ -1,14 +1,16 @@
-using Avalonia.Controls;
-using Avalonia.Threading;
+using CoreFoundation;
+using Foundation;
+using WebKit;
 
 namespace OpenClawDebugger;
 
 /// <summary>
-/// WKWebView 的桥接传输实现。macOS 侧唯一直接调用 NativeWebView 脚本 API 的地方，
+/// WKWebView 的桥接传输实现。macOS 侧唯一直接调用 WKWebView 脚本 API 的地方，
 /// Core 只认 <see cref="IBridgeTransport"/>。
 /// 页面里的 <c>window.__openclawHostDeliver</c> 由 host-shim.js 提供。
+/// 注意：WKWebView 的 API 只能在主线程调用，所有投递都先切回主线程。
 /// </summary>
-public sealed class AvaloniaBridgeTransport(NativeWebView webView) : IBridgeTransport
+public sealed class NativeBridgeTransport(WKWebView webView) : IBridgeTransport
 {
     private static readonly bool Verbose =
         Environment.GetEnvironmentVariable("OPENCLAW_BRIDGE_LOG") == "1";
@@ -20,20 +22,18 @@ public sealed class AvaloniaBridgeTransport(NativeWebView webView) : IBridgeTran
         // 反序列化端在页面里，这里把响应直接作为对象字面量传进去。
         var script = "window.__openclawHostDeliver(" + Escape(json) + ");";
 
-        if (!Dispatcher.UIThread.CheckAccess())
+        // WKWebView API 必须主线程调用，桥接响应常从后台线程触发，这里强制切回主线程。
+        DispatchQueue.MainQueue.DispatchAsync(() =>
         {
-            Dispatcher.UIThread.Post(() => PostMessage(json));
-            return;
-        }
-
-        try
-        {
-            _ = webView.InvokeScript(script);
-        }
-        catch (InvalidOperationException)
-        {
-            // 窗口或 WebView 已销毁时投递必然失败（含 ObjectDisposedException），属于正常竞态。
-        }
+            try
+            {
+                _ = webView.EvaluateJavaScriptAsync(script);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
+            {
+                // 窗口或 WebView 已销毁时投递必然失败，属于正常竞态。
+            }
+        });
     }
 
     /// <summary>JSON 已经是合法的 JS 对象字面量，只需转义会把脚本截断的行分隔符。</summary>
