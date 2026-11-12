@@ -28,6 +28,7 @@ sealed class TestSuite
         await RunAsync("模型拖拽自动保存", ModelAutoSaveContractAsync);
         await RunAsync("模型 API 地址仅允许 HTTPS", ModelSecurityTests.AddModelRequiresHttpsAsync);
         await RunAsync("SSH 目标预设生成", SshTargetSeedAsync);
+        await RunAsync("本机网关自动启动判定", LocalGatewayTargetAsync);
         Console.WriteLine($"通过 {_passed} 项，失败 {_failed} 项。" );
         if (_failed > 0) Environment.ExitCode = 1;
     }
@@ -292,6 +293,68 @@ sealed class TestSuite
         Assert(configured.Targets.Count == 1 && configured.Targets[0].Id == "custom",
             "已配置的目标应原样保留");
         return Task.CompletedTask;
+    }
+
+    private static async Task LocalGatewayTargetAsync()
+    {
+        Assert(LocalGatewayLauncher.IsLoopbackHost("127.0.0.1"), "127.0.0.1 应识别为本机");
+        Assert(LocalGatewayLauncher.IsLoopbackHost("localhost"), "localhost 应识别为本机");
+        Assert(LocalGatewayLauncher.IsLoopbackHost("127.8.9.10"), "127.0.0.0/8 应识别为本机");
+        Assert(LocalGatewayLauncher.IsLoopbackHost("::1"), "::1 应识别为本机");
+        Assert(!LocalGatewayLauncher.IsLoopbackHost("106.14.173.90"), "阿里云地址不应识别为本机");
+        Assert(!LocalGatewayLauncher.IsLoopbackHost("127.0.0"), "不完整地址不应识别为本机");
+        Assert(!LocalGatewayLauncher.IsLoopbackHost(""), "空地址不应识别为本机");
+
+        var config = Path.Combine(NewTempDirectory(), "openclaw.json");
+        await File.WriteAllTextAsync(config, "{\"gateway\":{\"port\":18801,\"mode\":\"local\"}}");
+        Assert(LocalGatewayLauncher.TryReadPort(config, out var numberPort) && numberPort == 18801,
+            "应读取配置中的数字端口");
+        await File.WriteAllTextAsync(config, "{\"gateway\":{\"port\":\"18802\"}}");
+        Assert(LocalGatewayLauncher.TryReadPort(config, out var textPort) && textPort == 18802,
+            "字符串端口也应可读");
+        await File.WriteAllTextAsync(config, "{\"gateway\":{\"port\":70000}}");
+        Assert(!LocalGatewayLauncher.TryReadPort(config, out _), "越界端口应忽略");
+        await File.WriteAllTextAsync(config, "not-json");
+        Assert(!LocalGatewayLauncher.TryReadPort(config, out _), "损坏配置不应抛异常");
+
+        var remote = await LocalGatewayLauncher.EnsureRunningAsync("106.14.173.90", null, null, CancellationToken.None);
+        Assert(!remote.Applicable && !remote.Running && remote.ShortStatus.Length == 0,
+            "远端目标不应尝试启动本机网关");
+
+        // 残留 reclaim 标记清理：过期空目录删除，新鲜或非空目录保留。
+        var stateRoot = NewTempDirectory();
+        var tempDir = Path.Combine(stateRoot, "tmp", "openclaw-501");
+        Directory.CreateDirectory(tempDir);
+        var staleMarker = Path.Combine(tempDir, "state.demo.lock.reclaim");
+        Directory.CreateDirectory(staleMarker);
+        Directory.SetLastWriteTimeUtc(staleMarker, DateTime.UtcNow.AddMinutes(-10));
+        var freshMarker = Path.Combine(tempDir, "state.fresh.lock.reclaim");
+        Directory.CreateDirectory(freshMarker);
+
+        var removed = LocalGatewayLauncher.CleanupStaleReclaimMarkers(stateRoot, TimeSpan.FromSeconds(60));
+        Assert(!Directory.Exists(staleMarker), "过期的 reclaim 占位目录应删除");
+        Assert(Directory.Exists(freshMarker), "刚创建的 reclaim 占位目录应保留");
+        Assert(removed.Count == 1 && removed[0] == "state.demo.lock.reclaim", "应报告被清理的目录");
+
+        var heldMarker = Path.Combine(tempDir, "state.held.lock.reclaim");
+        Directory.CreateDirectory(heldMarker);
+        Directory.SetLastWriteTimeUtc(heldMarker, DateTime.UtcNow.AddMinutes(-10));
+        File.WriteAllText(Path.Combine(heldMarker, "owner.pid"), "1234");
+        LocalGatewayLauncher.CleanupStaleReclaimMarkers(stateRoot, TimeSpan.FromSeconds(60));
+        Assert(Directory.Exists(heldMarker), "非空的 reclaim 目录不应删除");
+
+        // node 定位：openclaw 是 #!/usr/bin/env node 脚本，GUI 启动的 PATH 里没有 node，
+        // 起网关会直接失败（"env: node: No such file or directory"），所以要显式补进子进程 PATH。
+        var nodeDirectory = LocalGatewayLauncher.ResolveNodeDirectory();
+        Assert(nodeDirectory is not null, "应能定位 node 所在目录");
+        Assert(File.Exists(Path.Combine(nodeDirectory!, OperatingSystem.IsWindows() ? "node.exe" : "node")),
+            "node 应可在定位到的目录中执行");
+
+        var childInfo = new System.Diagnostics.ProcessStartInfo("/bin/sh");
+        LocalGatewayLauncher.ApplyChildPath(childInfo);
+        var childPath = childInfo.Environment["PATH"] ?? "";
+        Assert(childPath.Contains(nodeDirectory!, StringComparison.Ordinal), "子进程 PATH 应包含 node 目录");
+        Assert(childPath.Contains("/usr/local/bin", StringComparison.Ordinal), "子进程 PATH 应包含常见 bin 目录");
     }
 
     private static void Assert(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }    private static void AssertThrows<T>(Action action) where T : Exception { try { action(); } catch (T) { return; } throw new InvalidOperationException("应抛出 " + typeof(T).Name); }

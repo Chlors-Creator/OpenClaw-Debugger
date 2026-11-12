@@ -114,29 +114,42 @@ public sealed class ConnectionCoordinator : IDisposable
             {
                 Models?.ResetCache();
                 await SettingsRepository.SaveAsync(settings);
-            Files = await _remoteFiles.ConnectAndListAsync(settings.Connection, cancellationToken);
-            IsConnected = true;
-            Memory?.Reset();
-            var stickerService = Stickers ?? throw new InvalidOperationException("表情包服务未初始化。" );
-            var stickerLoad = await stickerService.LoadAsync(Files, cancellationToken);
-            var memories = Files.Where(x => x.Root == "workspace" && !x.IsImage && x.Editable)
-                .OrderBy(x => x.RelativePath.StartsWith("memory/", StringComparison.Ordinal) ? 1 : 0)
-                .ThenBy(x => x.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var imagesCount = Files.Count(x => x.Root == "stickers" && x.IsImage);
-            return new ConnectionScanResult(
-                true,
-                "已连接 · " + memories.Count + " 个文档 · " + imagesCount + " 张图片",
-                memories,
-                memories.Count,
-                stickerLoad.StickerFiles,
-                stickerLoad.StickerCount,
-                stickerLoad.StickerEditingEnabled,
-                stickerLoad.CatalogText,
-                stickerLoad.ManifestText,
-                stickerLoad.StickerStatus,
-                settings.Connection.WorkspacePath,
-                settings.Connection.StickersPath);
+
+                // 本机目标：连接时顺带把本机 OpenClaw 网关拉起来。启动在后台进行，
+                // 不阻塞文件扫描；就绪后再把状态行从「启动中」改成「已启动」。
+                var gatewayPort = LocalGatewayLauncher.ResolvePort();
+                var gatewayTask = StartLocalGatewayAsync(settings.Connection);
+
+                Files = await _remoteFiles.ConnectAndListAsync(settings.Connection, cancellationToken);
+                IsConnected = true;
+                Memory?.Reset();
+                var stickerService = Stickers ?? throw new InvalidOperationException("表情包服务未初始化。" );
+                var stickerLoad = await stickerService.LoadAsync(Files, cancellationToken);
+                var memories = Files.Where(x => x.Root == "workspace" && !x.IsImage && x.Editable)
+                    .OrderBy(x => x.RelativePath.StartsWith("memory/", StringComparison.Ordinal) ? 1 : 0)
+                    .ThenBy(x => x.RelativePath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var imagesCount = Files.Count(x => x.Root == "stickers" && x.IsImage);
+                var status = "已连接 · " + memories.Count + " 个文档 · " + imagesCount + " 张图片";
+                if (gatewayTask is not null)
+                {
+                    var online = await LocalGatewayLauncher.IsListeningAsync(gatewayPort, cancellationToken);
+                    status += online ? " · 本机网关在线" : " · 本机网关启动中";
+                    WatchGateway(gatewayTask, status);
+                }
+                return new ConnectionScanResult(
+                    true,
+                    status,
+                    memories,
+                    memories.Count,
+                    stickerLoad.StickerFiles,
+                    stickerLoad.StickerCount,
+                    stickerLoad.StickerEditingEnabled,
+                    stickerLoad.CatalogText,
+                    stickerLoad.ManifestText,
+                    stickerLoad.StickerStatus,
+                    settings.Connection.WorkspacePath,
+                    settings.Connection.StickersPath);
             }
             catch
             {
@@ -149,6 +162,59 @@ public sealed class ConnectionCoordinator : IDisposable
             }
         }
         finally { _connectGate.Release(); }
+    }
+
+    /// <summary>本机目标在后台确保网关在线；远端目标返回 null，表示这一趟不需要管网关。</summary>
+    private Task<LocalGatewayStartResult>? StartLocalGatewayAsync(ConnectionSettings connection)
+    {
+        if (!LocalGatewayLauncher.IsLoopbackHost(connection.Host)) return null;
+
+        var logDirectory = string.IsNullOrWhiteSpace(_settings?.PrivateDirectory)
+            ? null
+            : Path.Combine(_settings.PrivateDirectory, "Logs");
+        _sendProgress("gateway", new { phase = "checking", message = "正在检查本机 OpenClaw 网关…" });
+
+        // 不跟随连接请求的取消：用户点了连接就该把本机服务器开起来。
+        var task = Task.Run(() => LocalGatewayLauncher.EnsureRunningAsync(
+            connection.Host,
+            logDirectory,
+            message => _sendProgress("gateway", new { phase = "starting", message }),
+            CancellationToken.None));
+
+        // 连接本身失败时 WatchGateway 不会挂上去，这里兜住异常避免变成未观察任务。
+        _ = task.ContinueWith(
+            static completed => _ = completed.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+        return task;
+    }
+
+    /// <summary>后台启动完成后更新状态行：就绪改成「已启动」，失败给出提示。</summary>
+    private void WatchGateway(Task<LocalGatewayStartResult> task, string connectedStatus)
+    {
+        _ = task.ContinueWith(completed =>
+        {
+            if (!completed.IsCompletedSuccessfully) return;
+            var gateway = completed.Result;
+            if (!gateway.Applicable) return;
+            if (gateway.Running)
+            {
+                if (gateway.StartedNow)
+                    _sendProgress("gateway", new
+                    {
+                        phase = "online",
+                        message = connectedStatus.Replace("本机网关启动中", "本机网关已启动", StringComparison.Ordinal)
+                    });
+                return;
+            }
+            _sendProgress("gateway", new
+            {
+                phase = gateway.Pending ? "pending" : "failed",
+                message = gateway.Message,
+                detail = gateway.Detail
+            });
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
 
     public async Task<object> DisconnectAsync(CancellationToken cancellationToken = default)

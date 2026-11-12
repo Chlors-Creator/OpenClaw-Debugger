@@ -488,6 +488,20 @@
         else if (task.state === 'failed' && task.message) setStatus(task.message, true);
       },
       onUpload: progress => appState.uploadController?.handleProgress(progress),
+      onGateway: progress => {
+        if (progress.phase === 'failed') {
+          showToast(progress.message || '本机 OpenClaw 网关未能启动。', true);
+          return;
+        }
+        if (progress.phase === 'online') {
+          const status = $('#connectionStatus');
+          if (status.textContent.indexOf('启动中') >= 0 && progress.message) status.textContent = progress.message;
+          if (progress.message) setStatus(progress.message);
+          return;
+        }
+        if (progress.phase === 'pending' && progress.message) setStatus(progress.message);
+        if (appState.connecting && progress.message && progress.phase !== 'pending') $('#connectionStatus').textContent = progress.message;
+      },
       onBackup: progress => {
         if (progress.phase === 'paused') appState.backupPaused = true;
         renderBackupProgress(progress);

@@ -108,12 +108,46 @@ internal sealed class MainWindow : Window
             _webView.NavigationCompleted += OnNavigationCompleted;
             _webView.Source = new Uri(_server.BaseUri, "index.html?v=" + cacheKey.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Console.WriteLine($"[shell] 界面服务已就绪：{_server.BaseUri}");
+            StartSelfTestIfRequested();
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"[shell] 初始化失败：{ex}");
             Close();
         }
+    }
+
+    /// <summary>
+    /// 诊断开关：设置 OPENCLAW_SELFTEST_PATH 后，应用启动会自动连接一次并把结果写到该文件。
+    /// 用于在没有图形交互的环境里验证连接链路和本机网关自动启动。
+    /// </summary>
+    private void StartSelfTestIfRequested()
+    {
+        var path = Environment.GetEnvironmentVariable("OPENCLAW_SELFTEST_PATH");
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        _ = Task.Run(async () =>
+        {
+            var lines = new List<string>();
+            try
+            {
+                var result = await ConnectAsync(CancellationToken.None);
+                lines.Add(JsonSerializer.Serialize(result));
+            }
+            catch (Exception ex)
+            {
+                lines.Add("CONNECT-FAILED " + ex.Message);
+            }
+
+            var port = LocalGatewayLauncher.ResolvePort();
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            while (watch.Elapsed < TimeSpan.FromSeconds(240) &&
+                   !await LocalGatewayLauncher.IsListeningAsync(port, CancellationToken.None))
+                await Task.Delay(1000);
+            var listening = await LocalGatewayLauncher.IsListeningAsync(port, CancellationToken.None);
+            lines.Add($"gatewayPort={port} listening={listening} waited={watch.Elapsed.TotalSeconds:F0}s");
+            await File.WriteAllLinesAsync(path, lines);
+        });
     }
 
     private void OnWebMessageReceived(object? sender, WebMessageReceivedEventArgs e)
