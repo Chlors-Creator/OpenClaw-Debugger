@@ -130,3 +130,6 @@ body.theme-light .file-row.selected,body.theme-light .sticker-row.selected{backg
 .memory-galaxy-panel .memory-galaxy-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:12px;background:rgba(2,12,14,.45)}
 .memory-galaxy-panel[hidden]{display:none!important}
 #openMemoryGalaxyButton.memory-galaxy-active{border-color:color-mix(in srgb,var(--palette-accent) 45%,transparent);background:color-mix(in srgb,var(--palette-accent) 16%,var(--palette-surface));color:var(--palette-accent2)}
+
+/* macOS frameless: reserve space for the native traffic lights that now float over the content. */
+@media(min-width:781px){.topbar{padding-left:88px}}

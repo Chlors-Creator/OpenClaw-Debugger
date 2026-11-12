@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -46,6 +47,11 @@ internal sealed class MainWindow : Window
         MinWidth = 960;
         MinHeight = 640;
 
+        // 无标题栏但保留原生红绿灯 + 圆角：让内容区延伸到系统标题栏区域。
+        // 注意这里刻意「不」设 WindowDecorations.None —— 那会连红绿灯一起干掉。
+        // 只设 ExtendClientAreaToDecorationsHint，配合 Opened 里的原生 titlebarAppearsTransparent。
+        ExtendClientAreaToDecorationsHint = true;
+
         _clawHubHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         _egressIpHttpClient = new HttpClient(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false })
         {
@@ -73,8 +79,75 @@ internal sealed class MainWindow : Window
         Content = _webView;
         _webView.WebMessageReceived += OnWebMessageReceived;
         _webView.NewWindowRequested += (_, e) => e.Handled = true;
-        Opened += async (_, _) => await InitializeAsync();
+        Opened += async (_, _) =>
+        {
+            ApplyFramelessNativeBehavior();
+            await InitializeAsync();
+        };
         Closing += OnClosing;
+    }
+
+    /// <summary>
+    /// 无标题栏（保留红绿灯 + 圆角）的原生行为：
+    /// 让内容铺满整个窗口，标题栏透明，但保留 macOS 原生的红黄绿按钮与窗口圆角。
+    /// 仅在 macOS 上生效，其它平台为空操作。
+    /// </summary>
+    private void ApplyFramelessNativeBehavior()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        try
+        {
+            // 通过 NSApp.keyWindow 拿到当前窗口的原生 NSWindow 指针，
+            // 避免依赖 Avalonia 未公开的原生句柄接口。
+            var nsApp = ObjCRuntime.objc_msgSend(ObjCRuntime.objc_getClass("NSApplication"), Sel("sharedApplication"));
+            var nsWindow = ObjCRuntime.objc_msgSend(nsApp, Sel("keyWindow"));
+            if (nsWindow == IntPtr.Zero) return;
+
+            // titlebarAppearsTransparent：标题栏透明（标题文字消失，但红绿灯保留）
+            ObjCRuntime.objc_msgSend_bool(nsWindow, Sel("setTitlebarAppearsTransparent:"), true);
+            // titleVisibility = hidden：隐藏标题文字（等价 NSWindowTitleHidden）
+            ObjCRuntime.objc_msgSend_long(nsWindow, Sel("setTitleVisibility:"), 1);
+            // fullSizeContentView：内容区铺满整窗（含标题栏下方）
+            var styleMask = ObjCRuntime.objc_msgSend_ret(nsWindow, Sel("styleMask"));
+            ObjCRuntime.objc_msgSend_ulong(nsWindow, Sel("setStyleMask:"),
+                (ulong)(styleMask | NSWindowStyleMaskFullSizeContentView));
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[shell] 应用无标题栏原生行为失败：{ex.Message}");
+        }
+    }
+
+    // NSWindowStyleMaskFullSizeContentView = 1 << 15
+    private const nint NSWindowStyleMaskFullSizeContentView = 1 << 15;
+
+    private static IntPtr Sel(string name) => ObjCRuntime.sel_registerName(name);
+
+    private static class ObjCRuntime
+    {
+        private const string ObjCLib = "/usr/lib/libobjc.A.dylib";
+
+        [DllImport(ObjCLib, EntryPoint = "objc_getClass")]
+        public static extern IntPtr objc_getClass(string name);
+
+        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
+        public static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+
+        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
+        public static extern IntPtr objc_msgSend_bool(IntPtr receiver, IntPtr selector, bool value);
+
+        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
+        public static extern nint objc_msgSend_ret(IntPtr receiver, IntPtr selector);
+
+        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
+        public static extern IntPtr objc_msgSend_long(IntPtr receiver, IntPtr selector, long value);
+
+        [DllImport(ObjCLib, EntryPoint = "objc_msgSend")]
+        public static extern IntPtr objc_msgSend_ulong(IntPtr receiver, IntPtr selector, ulong value);
+
+        [DllImport(ObjCLib, EntryPoint = "sel_registerName")]
+        public static extern IntPtr sel_registerName(string name);
     }
 
     private async Task InitializeAsync()
