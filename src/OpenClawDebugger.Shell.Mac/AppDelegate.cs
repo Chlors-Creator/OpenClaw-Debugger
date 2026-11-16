@@ -15,9 +15,20 @@ internal sealed class AppDelegate : NSApplicationDelegate
     {
         // Set the Dock icon explicitly at runtime. This also refreshes the
         // icon when Launch Services has cached the generic application icon.
-        var iconPath = NSBundle.MainBundle.PathForResource("AppIcon", "icns");
-        if (!string.IsNullOrEmpty(iconPath))
-            NSApplication.SharedApplication.ApplicationIconImage = new NSImage(NSUrl.FromFilename(iconPath));
+        var icon = NSImage.ImageNamed("icon");
+        var iconPath = NSBundle.MainBundle.PathForResource("icon", "icns")
+            ?? Path.Combine(NSBundle.MainBundle.BundlePath, "Contents", "Resources", "icon.icns");
+        if (icon is null || icon.Size.Width <= 0)
+            icon = new NSImage(NSUrl.FromFilename(iconPath));
+        if (icon is not null && icon.Size.Width > 0)
+        {
+            NSApplication.SharedApplication.ApplicationIconImage = icon;
+            Console.WriteLine($"[shell] Dock 图标已加载：{iconPath} ({icon.Size.Width}x{icon.Size.Height})");
+        }
+        else
+        {
+            Console.Error.WriteLine($"[shell] Dock 图标加载失败：{iconPath}");
+        }
 
         _mainWindow = new MainWindow();
         _mainWindow.MakeKeyAndOrderFront(null);

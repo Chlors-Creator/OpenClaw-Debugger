@@ -30,6 +30,7 @@ internal sealed class MainWindow : NSWindow, IWKScriptMessageHandler
     private readonly ConnectionCoordinator _connection;
     private readonly WKWebView _webView;
     private readonly object _busySync = new();
+    private NSObject? _dragMonitor;
 
     private CustomArtifactBridgeHandler? _customArtifactBridge;
     private BridgeDispatcher? _bridgeDispatcher;
@@ -59,6 +60,31 @@ internal sealed class MainWindow : NSWindow, IWKScriptMessageHandler
         TitlebarAppearsTransparent = true;
         TitleVisibility = NSWindowTitleVisibility.Hidden;
         MovableByWindowBackground = true;
+        // WKWebView consumes mouse events, so NSWindow's background dragging
+        // is not reached. Keep a native drag strip across the titlebar area.
+        _dragMonitor = NSEvent.AddLocalMonitorForEventsMatchingMask(
+            NSEventMask.LeftMouseDown,
+            evt =>
+            {
+                var nativeTitlebarHeight = Frame.Height - ContentLayoutRect.Height;
+                if (nativeTitlebarHeight <= 0) nativeTitlebarHeight = 38;
+                var inTitlebar = evt.Window == this &&
+                    evt.LocationInWindow.Y > Frame.Height - nativeTitlebarHeight &&
+                    evt.LocationInWindow.X > 120;
+                if (inTitlebar && evt.ClickCount == 2)
+                {
+                    PerformZoom(this);
+                    return null!;
+                }
+
+                if (inTitlebar)
+                {
+                    PerformWindowDrag(evt);
+                    return null!;
+                }
+
+                return evt;
+            });
 
         _webView = CreateWebView();
 
@@ -325,6 +351,12 @@ internal sealed class MainWindow : NSWindow, IWKScriptMessageHandler
 
     private void Cleanup()
     {
+        if (_dragMonitor is not null)
+        {
+            NSEvent.RemoveMonitor(_dragMonitor);
+            _dragMonitor = null;
+        }
+
         // macOS 上没有阻塞式确认框，未保存草稿改为记日志后放行，避免关不掉窗口。
         if (!_closingApproved && _hasDrafts)
             Console.WriteLine("[shell] 关闭时存在未保存的草稿修改");

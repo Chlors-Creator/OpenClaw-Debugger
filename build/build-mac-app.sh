@@ -85,6 +85,31 @@ PY
       --out "$ICON_TMP/AppIcon.iconset/icon_${size}x${size}@2x.png" >/dev/null
   done
   iconutil -c icns "$ICON_TMP/AppIcon.iconset" -o "$ICON_TMP/AppIcon.icns"
+  # Also compile a modern macOS asset catalog. Finder and the sidebar prefer
+  # Assets.car when CFBundleIconName is present.
+  mkdir -p "$ICON_TMP/AppIcon.xcassets/AppIcon.appiconset" "$ICON_TMP/asset-output"
+  cp "$ICON_TMP/AppIcon.iconset"/*.png "$ICON_TMP/AppIcon.xcassets/AppIcon.appiconset/"
+  cat > "$ICON_TMP/AppIcon.xcassets/Contents.json" <<'JSON'
+{"info":{"author":"xcode","version":1}}
+JSON
+  cat > "$ICON_TMP/AppIcon.xcassets/AppIcon.appiconset/Contents.json" <<'JSON'
+{"images":[
+{"filename":"icon_16x16.png","idiom":"mac","scale":"1x","size":"16x16"},
+{"filename":"icon_16x16@2x.png","idiom":"mac","scale":"2x","size":"16x16"},
+{"filename":"icon_32x32.png","idiom":"mac","scale":"1x","size":"32x32"},
+{"filename":"icon_32x32@2x.png","idiom":"mac","scale":"2x","size":"32x32"},
+{"filename":"icon_128x128.png","idiom":"mac","scale":"1x","size":"128x128"},
+{"filename":"icon_128x128@2x.png","idiom":"mac","scale":"2x","size":"128x128"},
+{"filename":"icon_256x256.png","idiom":"mac","scale":"1x","size":"256x256"},
+{"filename":"icon_256x256@2x.png","idiom":"mac","scale":"2x","size":"256x256"},
+{"filename":"icon_512x512.png","idiom":"mac","scale":"1x","size":"512x512"},
+{"filename":"icon_512x512@2x.png","idiom":"mac","scale":"2x","size":"512x512"}
+],"info":{"author":"xcode","version":1}}
+JSON
+  xcrun actool --compile "$ICON_TMP/asset-output" --platform macosx \
+    --minimum-deployment-target 27.0 --app-icon AppIcon \
+    --output-partial-info-plist "$ICON_TMP/asset-output/partial.plist" \
+    "$ICON_TMP/AppIcon.xcassets" >/dev/null
 fi
 
 echo "==> 组装产物"
@@ -93,14 +118,15 @@ rm -rf "$APP"
 ditto "$BIN_APP" "$APP"
 if [ -f "$ICON_TMP/AppIcon.icns" ]; then
   cp "$ICON_TMP/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+  cp "$ICON_TMP/AppIcon.icns" "$APP/Contents/Resources/icon.icns"
   # The SDK does not know about this post-build icon; declare it in the final
   # bundle metadata so Finder and Dock can resolve the resource.
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFile" "$APP/Contents/Info.plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon.icns" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string icon.icns" "$APP/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP/Contents/Info.plist" 2>/dev/null || true
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFiles" "$APP/Contents/Info.plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles array" "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFiles:0 string AppIcon.icns" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion 2.0" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 2.0" "$APP/Contents/Info.plist"
 fi
 rm -rf "$ICON_TMP"
 
